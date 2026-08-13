@@ -1,0 +1,21 @@
+title,authors,year,citations,abstract,result_id,publication_info,pdf_links,url,total_results,search_time
+电动汽车无线充电系统磁场仿真与屏蔽技术研究,朱庆伟， 陈德清， 王丽芳， 廖承林， 郭彦杰,2015,9,"… , 研究结果表明:汽车底盘天然提供了较好的磁场屏蔽,车内电磁辐射较小;本文提出的在发射装 置外… 步限制磁场辐射.这些都可按照充电系统的实际几 何参数来建模.另一方面,电动汽车无线充电…",NqygpBfdsRwJ,"朱庆伟， 陈德清， 王丽芳， 廖承林， 郭彦杰 - 电工技术学报, 2015 - researchgate.net",[],https://www.researchgate.net/profile/Qingwei-Zhu/publication/284737008_Study_on_the_magnetic_field_and_shielding_technique_for_an_electric_vehicle_oriented_wireless_charging_system/links/569f79a508aee4d26ad25ec0/Study-on-the-magnetic-field-and-shielding-technique-for-an-electric-vehicle-oriented-wireless-charging-system.pdf,unknown,unknown
+基于多软件联合的车用电机变工况多物理场仿真方法,贾美霞， 胡建军， 肖凤,2025,0,"… 本文建模过程采用的也是MTPA控制策略.若要实现MTPA控制,… 在建模过程中进行了很多假设,未考虑电磁损耗的影响,以及电磁… 而铁耗是频率和磁场密度的函数,由图8可知,随着转速变化,磁场…",HdnfqOhdqAcJ,"贾美霞， 胡建军， 肖凤 - 吉林大学学报(工学版), 2025 - cjournal.hep.com.cn",[],https://cjournal.hep.com.cn/1671-5497/CN/10.13229/j.cnki.jdxbgxb.20230968,unknown,unknown
+高速动车组牵引系统电磁干扰分析及抑制方法研究,杨德勇， 朱柄全， 陈颖， 支永健， 袁科亮， 闫光临,2024,3,"… 基于上述理论分析,采用等效简化模型,对某动 车组牵引系统进行高频传导仿真建模.各部件… 设计要求,证明了本文所提出的 系统简化建模仿真方法具有较好的精确度. 4 电磁干扰抑制方法探讨 …",LcECKW23lYoJ,"杨德勇， 朱柄全， 陈颖， 支永健， 袁科亮， 闫光临 - 机车电传动, 2024 - edl.csrzic.com",[],https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128X.2022.06.013/,unknown,unknown
+基于MATLAB GUI 的小型直流继电器多物理场仿真平台开发.,鲍光海， 王金鹏,2022,1,"… 技术的基础上ꎬ实现仿真建模还是需要经过建模,电 磁参数设置,… 电磁系统主要包括铁心,线圈及其外电路和衔铁ꎬ模 拟线圈通电后磁场变化情况和电磁吸力情况ꎮ 机械 动力学模型主要包括电磁…",YjJZX3EQ1T0J,"鲍光海， 王金鹏 - Journal of Nanchang University (Engineering …, 2022 - openurl.ebsco.com",[],https://openurl.ebsco.com/contentitem/gcd:161125066?sid=ebsco:plink:crawler-gcd&id=ebsco:gcd:161125066&crl=c&jrnl=10060456,unknown,unknown
+纯电动汽车整车建模仿真研究,王俊兰， 吴义忠， 熊会元,2015,8,,F64nRQz8LLsJ,"王俊兰， 吴义忠， 熊会元 - 计算机仿真, 2015",[],,unknown,unknown
+基于混杂理论的电磁与摩擦制动集成系统的建模与仿真,何仁， 汤宝， 胡东海,2016,1,,HJbeHasdABwJ,"何仁， 汤宝， 胡东海 - 长安大学学报: 自然科学版, 2016",[],,unknown,unknown
+基于PSCAD 的城市轨道交通牵引供电系统建模与仿真研究,荣娜， 韩松， 彭小俊,2014,0,,WpnAu-09ZpMJ,"荣娜， 韩松， 彭小俊 - 贵州电力技术, 2014",[],,unknown,unknown
+电磁引导智能汽车设计与关键技术研究,赵凯瑞， 陶模， 王明亮， 李世良， 谢兰,2013,6,,ujaLfaPOI1IJ,"赵凯瑞， 陶模， 王明亮， 李世良， 谢兰 - 西北工业大学学报, 2013",[],,unknown,unknown
+基于电磁寻迹的智能车,龚亮涛， 汤毅超， 刘光亮,2015,0,,l7t_gIwo_vwJ,"龚亮涛， 汤毅超， 刘光亮 - 移动信息, 2015",[],,unknown,unknown
+基于电磁场检测的智能寻迹模型车设计,李涵武， 崔宏耀， 张娜伟， 王广,2011,4,,0nsE1y77sykJ,"李涵武， 崔宏耀， 张娜伟， 王广 - 黑龙江工程学院学报(自然科学版), 2011",[],,unknown,unknown
+基于MAXWELL3D 的电磁制动器电磁体仿真优化设计,杨泽斌， 全力， 陈照章,2009,4,,-ErLJGuNhkwJ,"杨泽斌， 全力， 陈照章 - 系统仿真学报, 2009",[],,unknown,unknown
+永磁电机控制系统与有限元模型联合仿真研究,葛红岩,2016,0,,61QFvalCy1EJ,"葛红岩 - 微电机, 2016",[],,unknown,unknown
+智能汽车设计与实践基础,李敏,2020,0,"… 培养, 教育部在已举办全国数学建模, 电 子设计, 机械设计, 结构… 人工智能技术引入了智能汽车竞赛, 比如第十五届的电磁AI 组和… 用 于智能汽车竞赛的电磁传感器来说, 除了考虑检测磁场的精度…",fpW8S_sV7dUJ,李敏 - 2020 - books.google.com,[],https://books.google.com/books?hl=zh-CN&lr=&id=0BNrEQAAQBAJ&oi=fnd&pg=PA1&dq=%E6%99%BA%E8%83%BD%E8%BD%A6+%E7%94%B5%E7%A3%81+%E7%A3%81%E5%9C%BA+%E5%BB%BA%E6%A8%A1+%E4%BB%BF%E7%9C%9F+%E5%AD%A6%E4%BD%8D%E8%AE%BA%E6%96%87&ots=n1X1PxqGB7&sig=QphhgJ_EbBKfuALgnuxX9ck5gpo,unknown,unknown
+电动汽车低频磁场人体暴露安全性研究,姜昊宇， 张晨， 巫彤宁,2022,1,"… 此外,本文结合常用的电磁 场数值方法对不同人体模型内的剂量… 学术期刊论 文和会议论文开展检索(不包含学位论文),依据关 键… 只能在车内有限位置布点获取磁场数 值,无法反映车内磁场时间-…",jwDI17gV-h4J,"姜昊宇， 张晨， 巫彤宁 - 电气技术, 2022 - dqjs.cesmedia.cn",[],https://dqjs.cesmedia.cn/EN/article/downloadArticleFile.do?attachType=PDF&id=3483,unknown,unknown
+一种基于模糊控制的智能车转向控制算法研究,孙绍杰， 齐晓慧,2011,3,,iP9VpMKg2AEJ,"孙绍杰， 齐晓慧 - 微计算机应用, 2011",[],,unknown,unknown
+基于磁流变柔性辅助支撑装置设计及磁路仿真,赵学峰， 徐裕超， 缪崇锦,2023,0,"… 本文设计的弱刚度工件加工辅助支撑装置利用了特殊的智能… 辅助支撑进行三维建模,将其导入Comsol中进行磁场仿真.下面是… 0.83 T,最大可达1.62 T,满足车削弱刚度套筒工件提供辅助支撑要求…",Cdo-oPTGT08J,"赵学峰， 徐裕超， 缪崇锦 - Modeling and Simulation, 2023 - hanspub.org",[],https://www.hanspub.org/journal/paperinformation?paperID=65467,unknown,unknown
+基于神经网络PID 的电动汽车轮毂电机调速设计与仿真,周帆， 徐斌， 杨世春， 郑嘉， 田朋云,2015,2,,-lzKG71DBQEJ,"周帆， 徐斌， 杨世春， 郑嘉， 田朋云 - 车辆与动力技术, 2015",[],,unknown,unknown
+基于电磁导航的智能车信号检测与控制策略研究,王能才,2014,8,,fP1zBumijg0J,王能才 - 2014 - 兰州理工大学,[],,unknown,unknown
+汽车电动制动助力器电机控制算法研究,李雪娟， 张海山， 陈丹华， 杨昭辉， 徐铁…,2022,0,"… 和SVPWM算法进行了公式推导和数学建模,在理论上论证了该套… 内受力方向始终不变,造成定子磁场形成的扭力和转子力臂的夹… 电机电流和电机电磁转矩的关系可由式6表示,式中 p n 为电极对…",IIKT77hj6bQJ,"李雪娟， 张海山， 陈丹华， 杨昭辉， 徐铁… - Modeling and …, 2022 - hanspub.org",[],https://www.hanspub.org/journal/paperinformation?paperID=54255,unknown,unknown
+船舶电力推进中燃气轮机发电机组建模与仿真,卓金宝， 施伟锋， 张威,2016,0,,jEOoI8F3MrQJ,"卓金宝， 施伟锋， 张威 - 计算机仿真, 2016",[],,unknown,unknown

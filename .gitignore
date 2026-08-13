@@ -1,0 +1,41 @@
+# ================= 大文件 / 本地产物（不进仓库）=================
+# 打包出的安装程序（GitHub 单文件 100MB 限制，且属于构建产物）
+*.exe
+
+# 旧版本备份
+backup/
+
+# 参考文献 PDF 与提取文本（约 250MB，仅本地保留）
+papers/
+
+# 仿真运行输出（图表等生成物）
+outputs/
+
+# Kimi 本地工具链垫片
+.toolchain/
+
+# ================= Python =================
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ================= Node / Electron =================
+node_modules/
+dist/
+dist-ssr/
+release/
+
+# ================= 编辑器 / 系统垃圾 =================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ================= 日志与临时文件 =================
+*.log
+*.tmp
+*.local

@@ -1,0 +1,1207 @@
+/**
+ * 智能车电磁赛道磁场建模工具 —— 主页面。
+ * 布局：左侧参数面板（赛道编辑 + 物理参数）｜ 中央大画布 ｜ 右侧电感面板。
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import FieldCanvas, { trackBBox } from '../components/FieldCanvas';
+import SensorPanel, { type PoseState } from '../components/SensorPanel';
+import TrackEditor, {
+  type ArcPending,
+  type EditMode,
+  type GlobalParams,
+  type LayMode,
+} from '../components/TrackEditor';
+import { computeB } from '../mathmodel/field';
+import type { CarPose, SensorDef, SensorReading } from '../mathmodel/sensor';
+import {
+  axisVector,
+  defaultLayout,
+  poseFrame,
+  sensorAxisWorld,
+  sensorWorld,
+  kFromAnchor,
+  VPP_ANCHOR_DEFAULT,
+} from '../mathmodel/sensor';
+import {
+  DEFAULT_TRACKING,
+  DEFAULT_FORMULA,
+  compileFormula,
+  type TrackingParams,
+} from '../mathmodel/control';
+import { simulateTracking, type TrackingResult } from '../mathmodel/kinematics';
+import {
+  buildElements,
+  buildFieldElements,
+  canCloseTrack,
+  closureGapM,
+  cornerRulers,
+  createNearestSeeker,
+  hexagonSegs,
+  lineSegTo,
+  nearestOnPath,
+  pointAtLength,
+  previewSegment,
+  rightAngleSeg,
+  samplePath,
+  segmentLength,
+  segmentSummaries,
+  trackTip,
+  type SegDef,
+  type TrackDef,
+} from '../mathmodel/track';
+import { useFieldGrid } from '../hooks/useFieldGrid';
+import { sweepAlongTrack, sweepMeasuredAlongTrack, type SweepResult } from '../mathmodel/sweep';
+import type { SourceKind } from '../sensors/sources';
+import {
+  evalMeasured,
+  fitChannelModel,
+  parseMeasuredCSV,
+  signedLateralDistance,
+  type MeasuredModelKind,
+  type MeasuredState,
+} from '../mathmodel/measured';
+import {
+  APP_STATE_VERSION,
+  clearAppState,
+  loadAppState,
+  saveAppState,
+  type AppViewState,
+  type FloatingChartsMap,
+  type FloatingChartState,
+  type PoseSource,
+  type TrackingRangesMap,
+} from '../utils/appState';
+import {
+  exportCanvasPNG,
+  exportGridCSV,
+  exportReadingsCSV,
+  exportSweepCSV,
+  exportTrackJSON,
+  exportTrackingCSV,
+  loadLibrary,
+  parseTrackJSON,
+  saveLibrary,
+  type SavedTrack,
+} from '../utils/exporters';
+import TrackingPanel from '../components/TrackingPanel';
+import {
+  FloatingLayerContext,
+  FloatingLayerHost,
+  useFloatingZOrder,
+} from '../components/FloatingChart';
+
+/** 程序版本号（与 package.json 同步；打包 exe 文件名含此版本） */
+export const APP_VERSION = '0.1.0';
+
+function arcPendingToSeg(p: ArcPending): SegDef {
+  return {
+    kind: 'arc',
+    radius: Math.max(0.01, Math.round(p.radiusMm / 10) / 100),
+    angleDeg: p.angleDeg,
+    turn: p.turn,
+  };
+}
+
+/** 角度归一化到 (−π, π]（最短弧，数学模型.md §6.4 朝向修复用） */
+function wrapAngle(a: number): number {
+  let r = a % (2 * Math.PI);
+  if (r > Math.PI) r -= 2 * Math.PI;
+  if (r <= -Math.PI) r += 2 * Math.PI;
+  return r;
+}
+
+export default function Home() {
+  // 启动时恢复上次工作状态（版本/结构非法时 loadAppState 返回 null -> 全默认）
+  const [restored] = useState(() => loadAppState());
+  const [trackDef, setTrackDef] = useState<TrackDef>(
+    restored?.trackDef ?? { name: '我的赛道', segments: [] },
+  );
+  const [params, setParams] = useState<GlobalParams>(
+    restored?.params ?? {
+      currentMa: 100,
+      heightMm: 70,
+      gridStepMm: 10,
+      component: 'bz',
+      logScale: true,
+    },
+  );
+  const [sensors, setSensors] = useState<SensorDef[]>(restored?.sensors ?? defaultLayout());
+  const [poseState, setPoseState] = useState<PoseState>(
+    restored?.pose ?? { sMm: 0, eMm: 0, psiDeg: 0 },
+  );
+  const [vppAnchor, setVppAnchor] = useState(restored?.vppAnchor ?? VPP_ANCHOR_DEFAULT);
+  const [sourceKind, setSourceKind] = useState<SourceKind>(restored?.sourceKind ?? 'simulation');
+  // 实测数据标定状态（数据集 + 每通道方案A 拟合结果），未导入为 null
+  const [measured, setMeasured] = useState<MeasuredState | null>(restored?.measured ?? null);
+  // 循迹闭环参数（公式文本/A/B/C/P/Kp/Kd/轮速/轮距/dt/初始扰动）
+  const [tracking, setTracking] = useState<TrackingParams>(restored?.tracking ?? DEFAULT_TRACKING);
+  // 位姿来源（程序设计说明.md §4.4）：手动位姿 / 跟随仿真轨迹；轨迹进度（s）
+  const [poseSource, setPoseSource] = useState<PoseSource>(restored?.poseSource ?? 'manual');
+  const [trajT, setTrajT] = useState(restored?.trajT ?? 0);
+  // 左侧栏收起状态（程序设计说明.md §3.1）
+  const [leftCollapsed, setLeftCollapsed] = useState(restored?.leftCollapsed ?? false);
+  // 折线图浮动状态（程序设计说明.md §3.5，appState v6）与循迹滑块自定义量程（程序设计说明.md §4.2，appState v6）
+  const [floatingCharts, setFloatingCharts] = useState<FloatingChartsMap>(
+    restored?.floatingCharts ?? {},
+  );
+  const [trackingRanges, setTrackingRanges] = useState<TrackingRangesMap>(
+    restored?.trackingRanges ?? {},
+  );
+  // 浮动层：portal 宿主元素 + z 序
+  const [floatLayerEl, setFloatLayerEl] = useState<HTMLElement | null>(null);
+  const { zOrder, bringToFront, ensure } = useFloatingZOrder();
+  const setFloatingChart = useCallback(
+    (id: string, patch: Partial<FloatingChartState>) => {
+      setFloatingCharts((m) => {
+        const cur: FloatingChartState = m[id] ?? { floating: false, x: 0, y: 0, w: 420, h: 280 };
+        return { ...m, [id]: { ...cur, ...patch } };
+      });
+      if (patch.floating) ensure(id);
+    },
+    [ensure],
+  );
+  const floatingCtx = useMemo(
+    () => ({
+      layerEl: floatLayerEl,
+      states: floatingCharts,
+      setChart: setFloatingChart,
+      zOrder,
+      bringToFront,
+    }),
+    [floatLayerEl, floatingCharts, setFloatingChart, zOrder, bringToFront],
+  );
+  const handleRangeChange = useCallback((id: string, r: { min: number; max: number } | null) => {
+    setTrackingRanges((m) => {
+      const next = { ...m };
+      if (r) next[id] = r;
+      else delete next[id];
+      return next;
+    });
+  }, []);
+  // 铺设状态
+  const [editMode, setEditMode] = useState<EditMode>(restored?.editMode ?? 'lay');
+  const [layMode, setLayMode] = useState<LayMode>(restored?.layMode ?? 'line');
+  const [placing, setPlacing] = useState(restored?.placing ?? true);
+  const [showSegLengths, setShowSegLengths] = useState(restored?.showSegLengths ?? false);
+  const [arcPending, setArcPending] = useState<ArcPending>(
+    restored?.arcPending ?? {
+      radiusMm: 500,
+      angleDeg: 90,
+      turn: 'right',
+    },
+  );
+  // 画布视图（缩放/平移），挂载时传给 FieldCanvas 恢复
+  const [view, setView] = useState<AppViewState | null>(restored?.view ?? null);
+  // "恢复默认设置"时 +1，强制 FieldCanvas 重挂载（回到自动 fit）
+  const [resetCounter, setResetCounter] = useState(0);
+  const [library, setLibrary] = useState<SavedTrack[]>(() => loadLibrary());
+  const [exportMsg, setExportMsg] = useState('');
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+
+  const handleViewChange = useCallback((v: AppViewState) => setView(v), []);
+
+  // 任何工作状态变化 -> 防抖 300ms 自动持久化（赛道库另有独立 key，不在此处）
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      saveAppState({
+        version: APP_STATE_VERSION,
+        savedAt: new Date().toISOString(),
+        trackDef,
+        params,
+        sensors,
+        pose: poseState,
+        vppAnchor,
+        sourceKind,
+        measured,
+        editMode,
+        layMode,
+        placing,
+        showSegLengths,
+        arcPending,
+        view,
+        tracking,
+        poseSource,
+        trajT,
+        leftCollapsed,
+        floatingCharts,
+        trackingRanges,
+      });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [
+    trackDef,
+    params,
+    sensors,
+    poseState,
+    vppAnchor,
+    sourceKind,
+    measured,
+    editMode,
+    layMode,
+    placing,
+    showSegLengths,
+    arcPending,
+    view,
+    tracking,
+    poseSource,
+    trajT,
+    leftCollapsed,
+    floatingCharts,
+    trackingRanges,
+  ]);
+
+  // 恢复默认设置：仅清除工作状态 key，赛道库保持不变
+  const resetDefaults = useCallback(() => {
+    if (!window.confirm('恢复默认设置？\n将重置当前赛道、电感布局、位姿与全部参数（赛道库不受影响）。'))
+      return;
+    clearAppState();
+    setTrackDef({ name: '我的赛道', segments: [] });
+    setParams({ currentMa: 100, heightMm: 70, gridStepMm: 10, component: 'bz', logScale: true });
+    setSensors(defaultLayout());
+    setPoseState({ sMm: 0, eMm: 0, psiDeg: 0 });
+    setVppAnchor(VPP_ANCHOR_DEFAULT);
+    setSourceKind('simulation');
+    setMeasured(null); // 实测标定数据一并清空
+    setEditMode('lay');
+    setLayMode('line');
+    setPlacing(true);
+    setShowSegLengths(false);
+    setArcPending({ radiusMm: 500, angleDeg: 90, turn: 'right' });
+    setTracking(DEFAULT_TRACKING);
+    setPoseSource('manual');
+    setTrajT(0);
+    setLeftCollapsed(false);
+    setFloatingCharts({});
+    setTrackingRanges({});
+    setView(null);
+    setResetCounter((c) => c + 1); // 重挂载画布 -> 回到自动 fit
+    flash('已恢复默认设置');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 赛道离散化（<=1cm 小段，渲染/采样/段数展示用）
+  const elements = useMemo(() => buildElements(trackDef), [trackDef]);
+  // 场计算模型：直线段走闭式积分（精确），仅圆弧段离散（<=1cm）
+  const fieldElements = useMemo(() => buildFieldElements(trackDef), [trackDef]);
+  const path = useMemo(() => samplePath(trackDef), [trackDef]);
+
+  // 网格参数：包围盒 + 边距，按步长求分辨率；硬上限 400×400=160k 单元，超出自动降档
+  const GRID_CELL_CAP = 160000;
+  const gridParams = useMemo(() => {
+    const bb = trackBBox(path, trackDef.extraWires, 0.35);
+    const w = bb.x1 - bb.x0;
+    const hh = bb.y1 - bb.y0;
+    let step = params.gridStepMm / 1000;
+    let nx = Math.round(w / step);
+    let ny = Math.round(hh / step);
+    let effStepMm = params.gridStepMm;
+    if (nx * ny > GRID_CELL_CAP) {
+      const f = Math.sqrt((nx * ny) / GRID_CELL_CAP);
+      effStepMm = Math.ceil((params.gridStepMm * f) / 5) * 5; // 向上取整到 5mm 档
+      step = effStepMm / 1000;
+      nx = Math.round(w / step);
+      ny = Math.round(hh / step);
+    }
+    return {
+      x0: bb.x0,
+      y0: bb.y0,
+      nx: Math.max(8, nx),
+      ny: Math.max(8, ny),
+      dx: w / Math.max(8, nx),
+      dy: hh / Math.max(8, ny),
+      effStepMm,
+      degraded: effStepMm > params.gridStepMm,
+    };
+  }, [path, trackDef.extraWires, params.gridStepMm]);
+
+  const { grid, computing, progress, runningMs, elapsedMs } = useFieldGrid(
+    fieldElements,
+    params.currentMa / 1000,
+    params.heightMm / 1000,
+    gridParams,
+  );
+
+  // 闭环赛道（数学模型.md §4）：终点距起点距离；勾选后段被改导致超阈值时自动取消闭环
+  const closureGapMm = closureGapM(trackDef.segments) * 1000;
+  const trackClosed = !!trackDef.closed && canCloseTrack(trackDef.segments);
+  useEffect(() => {
+    if (trackDef.closed && !canCloseTrack(trackDef.segments)) {
+      setTrackDef((t) => {
+        const { closed: _dropped, ...rest } = t;
+        return rest;
+      });
+    }
+  }, [trackDef]);
+  const handleClosedChange = useCallback((closed: boolean) => {
+    setTrackDef((t) => {
+      if (closed) {
+        if (!canCloseTrack(t.segments)) return t; // 超阈值不可闭环
+        return { ...t, closed: true };
+      }
+      const { closed: _dropped, ...rest } = t;
+      return rest;
+    });
+  }, []);
+
+  // 手动车体位姿（沿线位置 s + 横向偏差 e + 航向角 ψ）——位姿来源为"手动位姿"时使用，
+  // "跟随仿真轨迹"时在下方由循迹轨迹记录反算（程序设计说明.md §4.4）
+  const manualPose: CarPose | null = useMemo(() => {
+    if (path.s.length === 0) return null;
+    const p = pointAtLength(path, poseState.sMm / 1000);
+    return {
+      px: p.x,
+      py: p.y,
+      tx: p.tx,
+      ty: p.ty,
+      e: poseState.eMm / 1000,
+      psi: (poseState.psiDeg * Math.PI) / 180,
+    };
+  }, [path, poseState]);
+
+  // 标定系数 k（V/T）：由贴线 Vpp 锚点反推，电流变化时 k 不变、读数随 B 线性缩放
+  const kCal = useMemo(() => kFromAnchor(vppAnchor), [vppAnchor]);
+
+  // （电感实时读数在循迹仿真之后计算——"跟随仿真轨迹"位姿来源依赖循迹结果，见下方）
+
+  // ---------------- 全程扫描 U(s) ----------------
+  // 扫描依赖（赛道/e/ψ/电感布局/电流/标定）变化时防抖 250ms 重算；拖 s 滑块不触发
+  const [sweepTick, setSweepTick] = useState(0);
+  const sweepDepsRef = useRef({ path, elements: fieldElements, sensors, currentMa: params.currentMa, eMm: poseState.eMm, psiDeg: poseState.psiDeg, k: kCal, sourceKind, measured });
+  sweepDepsRef.current = { path, elements: fieldElements, sensors, currentMa: params.currentMa, eMm: poseState.eMm, psiDeg: poseState.psiDeg, k: kCal, sourceKind, measured };
+  useEffect(() => {
+    const t = window.setTimeout(() => setSweepTick((c) => c + 1), 250);
+    return () => window.clearTimeout(t);
+  }, [path, fieldElements, sensors, params.currentMa, poseState.eMm, poseState.psiDeg, kCal, sourceKind, measured]);
+
+  const sweep: SweepResult | null = useMemo(() => {
+    const d = sweepDepsRef.current;
+    if (d.path.s.length === 0 || d.sensors.length === 0) return null;
+    if (d.sourceKind === 'simulation') {
+      return sweepAlongTrack(
+        d.path,
+        d.elements,
+        d.sensors,
+        d.currentMa / 1000,
+        d.eMm / 1000,
+        (d.psiDeg * Math.PI) / 180,
+        d.k,
+      );
+    }
+    // 实测模型扫描：通道无数据时回退仿真值（名称加 * 标注）
+    if (
+      (d.sourceKind === 'measured-fit' || d.sourceKind === 'measured-phys') &&
+      d.measured
+    ) {
+      const m = d.measured;
+      const modelKind: MeasuredModelKind = d.sourceKind === 'measured-fit' ? 'fit' : 'phys';
+      const I = d.currentMa / 1000;
+      return sweepMeasuredAlongTrack(
+        d.path,
+        d.sensors,
+        d.eMm / 1000,
+        (d.psiDeg * Math.PI) / 180,
+        (sensor, dMm) =>
+          evalMeasured(m.dataset, m.fits, modelKind, sensor.name, sensor.axisPreset, dMm, {
+            hM: sensor.h,
+            axis: axisVector(sensor),
+            I,
+            k: d.k,
+          }),
+        10,
+        { elements: d.elements, I, k: d.k },
+      );
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sweepTick]);
+
+  // ---------------- 循迹闭环仿真（数学模型.md §8） ----------------
+  // 公式编译：表达式非法 / 引用未知变量（非电感名、非 A/B/C/P）时回退默认 C4 式并给出提示
+  const { trackFormula, formulaError } = useMemo(() => {
+    try {
+      const f = compileFormula(tracking.formula);
+      const valid = new Set([...sensors.map((s) => s.name), 'A', 'B', 'C', 'P']);
+      const unknown = f.variables.filter((v) => !valid.has(v));
+      if (unknown.length > 0) {
+        return {
+          trackFormula: compileFormula(DEFAULT_FORMULA),
+          formulaError: `未知变量：${unknown.join('、')}（可用 = 电感名 + A/B/C/P），已回退默认公式`,
+        };
+      }
+      return { trackFormula: f, formulaError: '' };
+    } catch (err) {
+      return {
+        trackFormula: compileFormula(DEFAULT_FORMULA),
+        formulaError: `公式非法：${err instanceof Error ? err.message : String(err)}，已回退默认公式`,
+      };
+    }
+  }, [tracking.formula, sensors]);
+
+  // 循迹读数注入：仿真源用 k·|B·n̂|；实测源换算横向距离 d 求值（无数据回退仿真）
+  // 任一参数（含公式本身）修改后防抖 ~200ms 重算，轨迹同步刷新
+  const [trackingTick, setTrackingTick] = useState(0);
+  const trackingDepsRef = useRef({
+    path,
+    elements: fieldElements,
+    sensors,
+    currentMa: params.currentMa,
+    k: kCal,
+    sourceKind,
+    measured,
+    tracking,
+    formula: trackFormula,
+  });
+  trackingDepsRef.current = {
+    path,
+    elements: fieldElements,
+    sensors,
+    currentMa: params.currentMa,
+    k: kCal,
+    sourceKind,
+    measured,
+    tracking,
+    formula: trackFormula,
+  };
+  useEffect(() => {
+    const t = window.setTimeout(() => setTrackingTick((c) => c + 1), 200);
+    return () => window.clearTimeout(t);
+  }, [path, fieldElements, sensors, params.currentMa, kCal, sourceKind, measured, tracking, trackFormula]);
+
+  const trackingResult: TrackingResult | null = useMemo(() => {
+    const d = trackingDepsRef.current;
+    if (!d.tracking.enabled || d.path.s.length === 0 || d.sensors.length === 0) return null;
+    const I = d.currentMa / 1000;
+    const modelKind: MeasuredModelKind | null =
+      d.sourceKind === 'measured-fit' ? 'fit' : d.sourceKind === 'measured-phys' ? 'phys' : null;
+    return simulateTracking({
+      path: d.path,
+      sensors: d.sensors,
+      params: d.tracking,
+      formula: d.formula,
+      closed: trackClosed, // 闭环赛道：行驶弧长达单圈总长即完赛（数学模型.md §4/数学模型.md §8.5）
+      readSensor: (sensor, w, axisWorld) => {
+        if (modelKind && d.measured) {
+          const dMm = signedLateralDistance(d.path, w.x, w.y) * 1000;
+          const v = evalMeasured(
+            d.measured.dataset,
+            d.measured.fits,
+            modelKind,
+            sensor.name,
+            sensor.axisPreset,
+            dMm,
+            { hM: sensor.h, axis: axisVector(sensor), I, k: d.k },
+          );
+          if (v !== null) return v;
+        }
+        const [bx, by, bz] = computeB(w.x, w.y, sensor.h, d.elements, I);
+        return d.k * Math.abs(bx * axisWorld[0] + by * axisWorld[1] + bz * axisWorld[2]);
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackingTick]);
+
+  // ---------------- 位姿来源（程序设计说明.md §4.4）：手动位姿 / 跟随仿真轨迹 ----------------
+  const trajAvailable = tracking.enabled && trackingResult !== null && trackingResult.steps > 0;
+  const trajDtS = Math.max(tracking.dtMs, 0.5) / 1000;
+  // 轨迹进度上限取冲线点（闭环=一圈），未跑满取最后一步
+  const trajDurationS = trajAvailable
+    ? Math.max(trackingResult.finishIndex, 0) * trajDtS
+    : 0;
+
+  // 跟随轨迹位姿：轨迹绝对位姿 (x,y,θ) 反算中线参考点/横向偏差/航向角（只读展示用）
+  const trajPoseInfo = useMemo(() => {
+    if (!trajAvailable || !trackingResult) return null;
+    const idx = Math.min(
+      Math.max(Math.round(trajT / trajDtS), 0),
+      trackingResult.finishIndex,
+    );
+    const x = trackingResult.x[idx];
+    const y = trackingResult.y[idx];
+    const theta = trackingResult.theta[idx];
+    const np = nearestOnPath(path, x, y);
+    const e = signedLateralDistance(path, x, y);
+    // 数学模型.md §6.4 修复：poseFrame 约定车头角 = 切向角 − ψ（ψ>0 右偏，顺时针），
+    // 故 ψ = 切向角 − θ（旧代码符号写反为 θ − 切向角，导致车头角 = 2·切向角 − θ，
+    // 转弯时车框朝反方向转）；ψ 归一到 (−π,π] 最短弧（不影响 poseFrame，仅展示整洁）
+    const psi = wrapAngle(Math.atan2(np.ty, np.tx) - theta);
+    return {
+      pose: { px: np.x, py: np.y, tx: np.tx, ty: np.ty, e, psi } satisfies CarPose,
+      display: {
+        sMm: np.s * 1000,
+        eMm: e * 1000,
+        psiDeg: (psi * 180) / Math.PI,
+      } satisfies PoseState,
+    };
+  }, [trajAvailable, trackingResult, trajT, trajDtS, path]);
+
+  const followTraj = poseSource === 'trajectory' && trajPoseInfo !== null;
+  const carPose: CarPose | null = followTraj ? trajPoseInfo.pose : manualPose;
+  const displayPose: PoseState = followTraj ? trajPoseInfo.display : poseState;
+
+  // 电感实时读数：
+  // - 仿真源：|u(t)| = k·cosθ·B = k·|B(P_i)·n̂_i|（Vpp）
+  // - 实测源（方案A 拟合 / 方案B 物理公式+偏差校正）：电感世界坐标 -> 有符号横向距离 d -> 实测模型求值；
+  //   通道无实测数据时回退仿真公式，name 加 * 标注（保持面板可用）
+  const readings: SensorReading[] = useMemo(() => {
+    if (!carPose) return [];
+    const frame = poseFrame(carPose);
+    const I = params.currentMa / 1000;
+    // 仿真回退（无实测数据的通道用）
+    const simValue = (s: SensorDef, w: { x: number; y: number; h: number }) => {
+      const n = sensorAxisWorld(s, frame);
+      const [bx, by, bz] = computeB(w.x, w.y, w.h, fieldElements, I);
+      return { value: kCal * Math.abs(bx * n[0] + by * n[1] + bz * n[2]), bx, by, bz };
+    };
+    if (sourceKind === 'measured-fit' || sourceKind === 'measured-phys') {
+      if (!measured || path.s.length === 0) return [];
+      const modelKind: MeasuredModelKind = sourceKind === 'measured-fit' ? 'fit' : 'phys';
+      return sensors.map((s) => {
+        const w = sensorWorld(s, frame);
+        const dMm = signedLateralDistance(path, w.x, w.y) * 1000;
+        const v = evalMeasured(
+          measured.dataset,
+          measured.fits,
+          modelKind,
+          s.name,
+          s.axisPreset,
+          dMm,
+          { hM: s.h, axis: axisVector(s), I, k: kCal },
+        );
+        if (v !== null) return { name: s.name, value: v, x: w.x, y: w.y };
+        const sim = simValue(s, w);
+        return { name: `${s.name}*`, value: sim.value, x: w.x, y: w.y, bx: sim.bx, by: sim.by, bz: sim.bz };
+      });
+    }
+    if (sourceKind !== 'simulation') return [];
+    return sensors.map((s) => {
+      const w = sensorWorld(s, frame);
+      const sim = simValue(s, w);
+      return { name: s.name, value: sim.value, x: w.x, y: w.y, bx: sim.bx, by: sim.by, bz: sim.bz };
+    });
+  }, [carPose, sensors, fieldElements, params.currentMa, kCal, sourceKind, measured, path]);
+
+  // ---------------- 一键调 PID（数学模型.md §8.6，2026-08-03 目标改为轨迹形状贴合） ----------------
+  // 在 [0,kpMax]×[0,kdMax] 网格搜索（粗搜后局部细化），逐组跑循迹仿真；
+  // 目标 J = RMS(|e|_直线) + 2·RMS(e_外,弯道) + RMS(max(0, e_内−e_内,max)_弯道) + 0.5·RMS(Δθ 抖动)；
+  // 直线段罚横向偏差 |e|；弯道允许并鼓励内收 ≤ e_in_max 不罚、外偏 2 倍罚、罚航向抖动保证过弯圆润；
+  // 选优顺序：先比能否完赛（失控判停不触发），再比 J 最小，再比完赛时间最短。
+  const runAutoTune = async (
+    kpMax: number,
+    kdMax: number,
+    eInMaxMm: number,
+    onProgress: (done: number, total: number) => void,
+  ): Promise<{ kp: number; kd: number } | null> => {
+    if (!tracking.enabled || path.s.length === 0 || sensors.length === 0) return null;
+    const eInMaxM = eInMaxMm / 1000;
+    const I = params.currentMa / 1000;
+    const modelKind: MeasuredModelKind | null =
+      sourceKind === 'measured-fit' ? 'fit' : sourceKind === 'measured-phys' ? 'phys' : null;
+    const readSensor = (
+      sensor: SensorDef,
+      w: { x: number; y: number },
+      axisWorld: [number, number, number],
+    ) => {
+      if (modelKind && measured) {
+        const dMm = signedLateralDistance(path, w.x, w.y) * 1000;
+        const v = evalMeasured(measured.dataset, measured.fits, modelKind, sensor.name, sensor.axisPreset, dMm, {
+          hM: sensor.h,
+          axis: axisVector(sensor),
+          I,
+          k: kCal,
+        });
+        if (v !== null) return v;
+      }
+      const [bx, by, bz] = computeB(w.x, w.y, sensor.h, fieldElements, I);
+      return kCal * Math.abs(bx * axisWorld[0] + by * axisWorld[1] + bz * axisWorld[2]);
+    };
+
+    interface Cand {
+      kp: number;
+      kd: number;
+      J: number;
+      timeS: number;
+    }
+    const score = (kp: number, kd: number): Cand | null => {
+      const r = simulateTracking({
+        path,
+        sensors,
+        params: { ...tracking, kp, kd },
+        formula: trackFormula,
+        readSensor,
+        closed: trackClosed,
+      });
+      if (r.status !== 'finished') return null; // 失控/步数上限不可行
+      const n = Math.max(1, r.finishIndex + 1);
+      // 逐轨迹点按所在中线段类型分类评价（局部最近点查询，轨迹连续 O(窗口)）
+      const seek = createNearestSeeker(path);
+      let sumLine = 0;
+      let cntLine = 0;
+      let sumOut = 0;
+      let sumInX = 0;
+      let cntArc = 0;
+      let sumJit = 0;
+      for (let i = 0; i < n; i++) {
+        const { s, e } = seek(r.x[i], r.y[i]);
+        const span = segSpans.find((sp) => s <= sp.endS + 1e-9) ?? segSpans[segSpans.length - 1];
+        if (!span || span.kind === 'line') {
+          sumLine += e * e; // 直线段：罚横向偏差
+          cntLine++;
+        } else {
+          // 弯道段：内收（弯心侧）≤ e_in_max 不罚；外偏 2 倍罚（外偏量平方见 J 组合）
+          const inward = span.turn === 'right' ? e : -e; // >0 = 弯心侧
+          const eOut = Math.max(0, -inward);
+          const eInX = Math.max(0, inward - eInMaxM); // 内收超上限部分罚 1 倍
+          sumOut += eOut * eOut;
+          sumInX += eInX * eInX;
+          cntArc++;
+        }
+        if (i >= 1 && i <= n - 2) {
+          // 航向抖动：相邻步 Δθ 二阶差分（突变/振荡），按最短弧
+          const j2 = wrapAngle(r.theta[i + 1] - 2 * r.theta[i] + r.theta[i - 1]);
+          sumJit += j2 * j2;
+        }
+      }
+      const rms = (s2: number, c: number) => Math.sqrt(s2 / Math.max(1, c));
+      const J =
+        rms(sumLine, cntLine) +
+        2 * rms(sumOut, cntArc) +
+        rms(sumInX, cntArc) +
+        0.5 * rms(sumJit, Math.max(1, n - 2));
+      return { kp, kd, J, timeS: r.t[r.finishIndex] ?? r.timeS };
+    };
+    const better = (a: Cand, b: Cand | null): boolean =>
+      !b || a.J < b.J - 1e-9 || (Math.abs(a.J - b.J) <= 1e-9 && a.timeS < b.timeS);
+
+    // 粗搜 13×11，局部细化 9×9
+    const KP_N = 13;
+    const KD_N = 11;
+    const TOTAL = KP_N * KD_N + 81;
+    let done = 0;
+    let best: Cand | null = null;
+    const yieldUI = async () => {
+      done++;
+      if (done % 8 === 0) {
+        onProgress(done, TOTAL);
+        await new Promise((r) => window.setTimeout(r, 0));
+      }
+    };
+    for (let i = 0; i < KP_N; i++) {
+      const kp = (kpMax * i) / (KP_N - 1);
+      for (let j = 0; j < KD_N; j++) {
+        const kd = (kdMax * j) / (KD_N - 1);
+        const c = score(kp, kd);
+        if (c && better(c, best)) best = c;
+        await yieldUI();
+      }
+    }
+    if (best) {
+      const kpStep = kpMax / (KP_N - 1);
+      const kdStep = kdMax / (KD_N - 1);
+      const b0 = best;
+      for (let i = -4; i <= 4; i++) {
+        const kp = Math.max(0, b0.kp + (i * kpStep) / 4);
+        for (let j = -4; j <= 4; j++) {
+          const kd = Math.max(0, b0.kd + (j * kdStep) / 4);
+          const c = score(kp, kd);
+          if (c && better(c, best)) best = c;
+          await yieldUI();
+        }
+      }
+    }
+    onProgress(TOTAL, TOTAL);
+    return best ? { kp: best.kp, kd: best.kd } : null;
+  };
+
+  // ---------------- 自由铺设 ----------------
+  const tip = useMemo(() => trackTip(trackDef.segments), [trackDef.segments]);
+  const arcSeg = useMemo(() => arcPendingToSeg(arcPending), [arcPending]);
+  const arcPreview = useMemo(() => previewSegment(arcSeg, tip), [arcSeg, tip]);
+
+  // 单击落点：笔尖 -> 目标点的直线段（尖角，1cm 吸附）
+  const addVertex = useCallback(
+    (x: number, y: number) => {
+      setPlacing(true);
+      setTrackDef((t) => {
+        const curTip = trackTip(t.segments);
+        const seg = lineSegTo(curTip, x, y);
+        if (!seg) return t;
+        return { ...t, segments: [...t.segments, seg] };
+      });
+    },
+    [],
+  );
+  const commitArc = useCallback(() => {
+    setTrackDef((t) => ({ ...t, segments: [...t.segments, arcPendingToSeg(arcPending)] }));
+  }, [arcPending]);
+  const undoSeg = useCallback(() => {
+    setTrackDef((t) => ({ ...t, segments: t.segments.slice(0, -1) }));
+  }, []);
+  const clearTrack = useCallback(() => {
+    setTrackDef({ name: '我的赛道', segments: [] });
+    setPlacing(true);
+  }, []);
+  const endPlacing = useCallback(() => setPlacing(false), []);
+
+  // 形状工具：直角弯（尖角）/ 正六边形环岛
+  const addRightAngle = useCallback((lenMm: number, dir: 'left' | 'right') => {
+    setTrackDef((t) => {
+      const curTip = trackTip(t.segments);
+      return { ...t, segments: [...t.segments, rightAngleSeg(curTip, lenMm / 1000, dir)] };
+    });
+  }, []);
+  const addHexagon = useCallback((edgeMm: number, dir: 'left' | 'right') => {
+    setTrackDef((t) => {
+      const curTip = trackTip(t.segments);
+      return { ...t, segments: [...t.segments, ...hexagonSegs(curTip, edgeMm / 1000, dir)] };
+    });
+  }, []);
+
+
+  // 段长标注
+  const segLabels = useMemo(() => {
+    if (!showSegLengths) return undefined;
+    return segmentSummaries(trackDef.segments).map((s) => ({
+      x: s.midX,
+      y: s.midY,
+      text: `${(s.lengthM * 1000).toFixed(0)}mm`,
+    }));
+  }, [showSegLengths, trackDef.segments]);
+
+  // 转角刻度（程序设计说明.md §3.2）：各转角顶点两侧 300mm 标尺（闭环含吸合处顶点）
+  const rulers = useMemo(
+    () => cornerRulers(trackDef.segments, trackClosed),
+    [trackDef.segments, trackClosed],
+  );
+
+  // 各段弧长区间与类型（数学模型.md §8.6 一键调 PID 轨迹形状评价：直线段 / 弯道段分类）
+  const segSpans = useMemo(() => {
+    const spans: { endS: number; kind: 'line' | 'arc'; turn?: 'left' | 'right' }[] = [];
+    let acc = 0;
+    for (const seg of trackDef.segments) {
+      acc += segmentLength(seg);
+      spans.push({ endS: acc, kind: seg.kind, turn: seg.kind === 'arc' ? seg.turn : undefined });
+    }
+    if (trackClosed) {
+      // 闭环吸合段按直线段处理
+      acc += Math.max(0, path.length - acc);
+      spans.push({ endS: acc, kind: 'line' });
+    }
+    return spans;
+  }, [trackDef.segments, trackClosed, path.length]);
+
+  // ---------------- 折线图点击联动车位（程序设计说明.md §3.6） ----------------
+  // 全程扫描图：切手动位姿并设 s（e/ψ 保持当前值）
+  const handleSweepPointClick = useCallback((sMm: number) => {
+    setPoseSource('manual');
+    setPoseState((p) => ({ ...p, sMm }));
+  }, []);
+  // 循迹类图（循迹轨迹电感图 / Err(t) / 轮速(t)）：切跟随仿真轨迹并定位 trajT
+  const handleTrajPointClick = useCallback(
+    (tSec: number) => {
+      if (!trajAvailable) {
+        flash('循迹无有效轨迹——请先开启循迹仿真');
+        return;
+      }
+      setPoseSource('trajectory');
+      setTrajT(Math.min(Math.max(0, tSec), trajDurationS));
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [trajAvailable, trajDurationS],
+  );
+
+  // ---------------- 赛道库 ----------------
+  const persistLibrary = useCallback((lib: SavedTrack[]) => {
+    setLibrary(lib);
+    saveLibrary(lib);
+  }, []);
+  const handleSaveTrack = useCallback(
+    (name: string) => {
+      setTrackDef((t) => ({ ...t, name }));
+      const lib = loadLibrary().filter((x) => x.name !== name);
+      lib.push({ name, def: { ...trackDef, name }, savedAt: new Date().toISOString() });
+      persistLibrary(lib);
+    },
+    [trackDef, persistLibrary],
+  );
+  const handleLoadTrack = useCallback((name: string) => {
+    const t = loadLibrary().find((x) => x.name === name);
+    if (t) {
+      setTrackDef(t.def);
+      setPoseState((p) => ({ ...p, sMm: 0 }));
+    }
+  }, []);
+  const handleRenameTrack = useCallback(
+    (oldName: string, newName: string) => {
+      const lib = loadLibrary().map((x) =>
+        x.name === oldName
+          ? { ...x, name: newName, def: { ...x.def, name: newName } }
+          : x,
+      );
+      persistLibrary(lib);
+    },
+    [persistLibrary],
+  );
+  const handleDeleteTrack = useCallback(
+    (name: string) => {
+      persistLibrary(loadLibrary().filter((x) => x.name !== name));
+    },
+    [persistLibrary],
+  );
+  const handleImportTrackJSON = useCallback(async (file: File) => {
+    try {
+      const def = parseTrackJSON(await file.text());
+      setTrackDef(def);
+      setPoseState((p) => ({ ...p, sMm: 0 }));
+    } catch (err) {
+      alert(`赛道导入失败：${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, []);
+
+  // ---------------- 实测数据标定 ----------------
+  // 导入实测 CSV：解析 -> 对每个能匹配当前电感 name 的通道做方案A 拟合（导入即自动分析）
+  const handleImportMeasured = useCallback(
+    async (file: File) => {
+      try {
+        const dataset = parseMeasuredCSV(await file.text(), file.name);
+        const fits: MeasuredState['fits'] = {};
+        const matched: string[] = [];
+        const failed: string[] = [];
+        for (const s of sensors) {
+          if (!dataset.channels.includes(s.name)) continue;
+          try {
+            fits[s.name] = fitChannelModel(dataset.points, s.name, s.axisPreset);
+            matched.push(s.name);
+          } catch {
+            failed.push(s.name);
+          }
+        }
+        setMeasured({ dataset, fits });
+        if (matched.length === 0) {
+          alert(
+            `实测数据已导入（${dataset.points.length} 点），但没有通道与当前电感名匹配。\n` +
+              `CSV 通道：${dataset.channels.join('、')}\n` +
+              `当前电感：${sensors.map((s) => s.name).join('、')}\n` +
+              `请在"电感布局"中把电感名改为与 CSV 通道一致。`,
+          );
+        } else if (failed.length > 0) {
+          alert(`部分通道拟合失败：${failed.join('、')}（有效点不足或拟合无有效组合）`);
+        }
+      } catch (err) {
+        alert(`实测数据导入失败：${err instanceof Error ? err.message : String(err)}`);
+      }
+    },
+    [sensors],
+  );
+  const handleClearMeasured = useCallback(() => {
+    setMeasured(null);
+    flash('已清除实测数据');
+  }, []);
+
+  // ---------------- 导出 ----------------
+  const exportCtx = {
+    currentMa: params.currentMa,
+    heightMm: params.heightMm,
+    gridStepMm: params.gridStepMm,
+    trackLengthM: path.length,
+    trackName: trackDef.name,
+  };
+  const flash = (msg: string) => {
+    setExportMsg(msg);
+    window.setTimeout(() => setExportMsg(''), 3000);
+  };
+  const doExportGrid = () => {
+    exportGridCSV(fieldElements, gridParams, exportCtx);
+    flash(`已导出磁场网格 CSV（${(gridParams.nx * gridParams.ny).toLocaleString()} 行）`);
+  };
+  const doExportReadings = () => {
+    exportReadingsCSV(sensors, readings, {
+      ...exportCtx,
+      eMm: poseState.eMm,
+      psiDeg: poseState.psiDeg,
+      k: kCal,
+      vppAnchor,
+    });
+    flash('已导出电感读数 CSV');
+  };
+  const doExportPNG = () => {
+    if (canvasElRef.current) {
+      exportCanvasPNG(canvasElRef.current);
+      flash('已导出画布 PNG');
+    }
+  };
+  const doExportSweep = () => {
+    if (!sweep) return;
+    exportSweepCSV(sweep, {
+      ...exportCtx,
+      eMm: poseState.eMm,
+      psiDeg: poseState.psiDeg,
+      k: kCal,
+      vppAnchor,
+    });
+    flash(`已导出全程扫描 CSV（${sweep.sMm.length} 点 × ${sweep.series.length} 电感）`);
+  };
+  const doExportTracking = () => {
+    if (!trackingResult) return;
+    const sourceName =
+      sourceKind === 'simulation'
+        ? '仿真模型'
+        : sourceKind === 'measured-fit'
+          ? '实测拟合(方案A)'
+          : sourceKind === 'measured-phys'
+            ? '实测物理+偏差(方案B)'
+            : sourceKind;
+    exportTrackingCSV(trackingResult, tracking, { ...exportCtx, sourceName });
+    flash(`已导出循迹轨迹 CSV（${trackingResult.steps} 步）`);
+  };
+
+  return (
+    <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
+      <header className="flex h-11 shrink-0 items-center justify-between border-b border-slate-800 px-4">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold">智能车电磁赛道磁场建模工具</span>
+          <span className="rounded border border-slate-700 bg-slate-800/60 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+            v{APP_VERSION}
+          </span>
+          <span className="text-[11px] text-slate-500">
+            毕奥-萨伐尔分段积分 · 总长 {(path.length * 1000).toFixed(0)} mm
+            {trackClosed && <span className="ml-1 text-emerald-400">· 闭环赛道（一圈）</span>}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {exportMsg && <span className="text-[11px] text-green-400">{exportMsg}</span>}
+          <span className="font-mono text-[11px] text-slate-500">
+            {computing ? (
+              <span className="text-cyan-300">
+                ⏳ 场计算中 {(progress * 100).toFixed(0)}% · {(runningMs / 1000).toFixed(1)}s
+              </span>
+            ) : grid ? (
+              `✓ 网格 ${grid.nx}×${grid.ny} · ${elapsedMs.toFixed(0)} ms`
+            ) : (
+              ''
+            )}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 border-slate-600 bg-slate-800 text-xs">
+                导出 ▾
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="border-slate-700 bg-slate-900 text-slate-200">
+              <DropdownMenuLabel className="text-xs text-slate-400">导出仿真结果</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-slate-700" />
+              <DropdownMenuItem className="text-xs" onClick={doExportGrid}>
+                磁场网格数据 CSV（x, y, h, Bx, By, Bz, |B|）
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs" onClick={doExportReadings}>
+                电感读数 CSV（当前位姿）
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs" onClick={doExportPNG}>
+                画布视图 PNG
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs" onClick={doExportSweep} disabled={!sweep}>
+                全程扫描 CSV（U(s)）
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs" onClick={doExportTracking} disabled={!trackingResult}>
+                循迹轨迹 CSV（t, x, y, θ, v_L, v_R, Err, U）
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-slate-700" />
+              <DropdownMenuItem className="text-xs" onClick={() => exportTrackJSON(trackDef)}>
+                赛道定义 JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 border-slate-600 bg-slate-800 text-xs text-slate-300"
+            title="清除自动保存的工作状态并重置（赛道库不受影响）"
+            onClick={resetDefaults}
+          >
+            恢复默认
+          </Button>
+        </div>
+      </header>
+      <div className="flex min-h-0 flex-1">
+        <FloatingLayerContext.Provider value={floatingCtx}>
+        {/* 左侧：赛道编辑 + 参数（程序设计说明.md §3.1：可收起为窄条，状态随 appState 持久化） */}
+        <aside
+          className={`shrink-0 border-r border-slate-800 bg-slate-900/60 ${
+            leftCollapsed ? 'flex w-8 flex-col items-center overflow-hidden' : 'w-[330px] overflow-y-auto'
+          }`}
+        >
+          {leftCollapsed ? (
+            <button
+              className="mt-2 flex h-6 w-6 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
+              title="展开赛道编辑面板"
+              onClick={() => setLeftCollapsed(false)}
+            >
+              <PanelLeftOpen size={14} />
+            </button>
+          ) : (
+            <>
+              <div className="flex justify-end px-2 pt-1.5">
+                <button
+                  className="flex h-5 w-5 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700"
+                  title="收起面板"
+                  onClick={() => setLeftCollapsed(true)}
+                >
+                  <PanelLeftClose size={12} />
+                </button>
+              </div>
+              <TrackEditor
+                trackDef={trackDef}
+                params={params}
+                onParamsChange={setParams}
+                elementCount={elements.count}
+                gridCells={gridParams.nx * gridParams.ny}
+                effStepMm={gridParams.effStepMm}
+                gridDegraded={gridParams.degraded}
+                elapsedMs={elapsedMs}
+                computing={computing}
+                totalLengthM={path.length}
+                editMode={editMode}
+                onEditModeChange={setEditMode}
+                showSegLengths={showSegLengths}
+                onShowSegLengthsChange={setShowSegLengths}
+                layMode={layMode}
+                onLayModeChange={(m) => {
+                  setLayMode(m);
+                  if (m === 'line') setPlacing(true);
+                }}
+                placing={placing}
+                onResumePlacing={() => setPlacing(true)}
+                onEndPlacing={endPlacing}
+                arcPending={arcPending}
+                onArcPendingChange={setArcPending}
+                onCommitArc={commitArc}
+                onUndoSeg={undoSeg}
+                onClearTrack={clearTrack}
+                onRightAngle={addRightAngle}
+                onHexagon={addHexagon}
+                onClosedChange={handleClosedChange}
+                closureGapMm={closureGapMm}
+                library={library}
+                onSaveTrack={handleSaveTrack}
+                onLoadTrack={handleLoadTrack}
+                onRenameTrack={handleRenameTrack}
+                onDeleteTrack={handleDeleteTrack}
+                onExportTrackJSON={() => exportTrackJSON(trackDef)}
+                onImportTrackJSON={handleImportTrackJSON}
+              />
+            </>
+          )}
+        </aside>
+        {/* 中央：磁场俯视图（relative 供折线图浮动层定位，程序设计说明.md §3.5） */}
+        <main className="relative min-w-0 flex-1">
+          <FieldCanvas
+            key={resetCounter}
+            elements={fieldElements}
+            path={path}
+            extraWires={trackDef.extraWires}
+            grid={grid}
+            component={params.component}
+            logScale={params.logScale}
+            pose={carPose}
+            sensors={sensors}
+            current_mA={params.currentMa}
+            heightMm={params.heightMm}
+            totalLengthM={path.length}
+            computing={computing}
+            computePct={progress}
+            segLabels={segLabels}
+            tracking={
+              trackingResult
+                ? {
+                    // 轨迹画到冲线点（首次跑满全长）；容差段为失控保护，不展示
+                    x: trackingResult.x.slice(0, trackingResult.finishIndex + 1),
+                    y: trackingResult.y.slice(0, trackingResult.finishIndex + 1),
+                    endTheta: trackingResult.theta[trackingResult.finishIndex] ?? 0,
+                    status: trackingResult.status,
+                  }
+                : null
+            }
+            initialView={view}
+            onViewChange={handleViewChange}
+            freeLay={{
+              active: editMode === 'lay',
+              mode: layMode,
+              placing,
+              tipX: tip.x,
+              tipY: tip.y,
+              tipPhi: tip.phi,
+              arcPreview,
+              arcAngleDeg: arcPending.angleDeg,
+              onArcAngle: (deg) => setArcPending((p) => ({ ...p, angleDeg: Math.min(360, Math.max(1, Math.round(deg))) })),
+              onVertex: addVertex,
+              onCommitArc: commitArc,
+              onEnd: endPlacing,
+            }}
+            registerCanvas={(el) => {
+              canvasElRef.current = el;
+            }}
+            cornerRulers={rulers}
+          />
+          {/* 折线图浮动层（程序设计说明.md §3.5 portal 宿主） */}
+          <FloatingLayerHost hostRef={setFloatLayerEl} />
+        </main>
+        {/* 右侧：电感面板（含循迹控制区，程序设计说明.md §3.3 顺序） */}
+        <aside className="w-[350px] shrink-0 overflow-y-auto border-l border-slate-800 bg-slate-900/60">
+          <SensorPanel
+            sensors={sensors}
+            onSensorsChange={setSensors}
+            pose={poseState}
+            onPoseChange={setPoseState}
+            trackLength={path.length}
+            vppAnchor={vppAnchor}
+            onVppAnchorChange={setVppAnchor}
+            kCal={kCal}
+            currentMa={params.currentMa}
+            readings={readings}
+            sourceKind={sourceKind}
+            onSourceKindChange={setSourceKind}
+            measured={measured}
+            onImportMeasured={handleImportMeasured}
+            onClearMeasured={handleClearMeasured}
+            sweep={sweep}
+            onExportSweep={doExportSweep}
+            poseSource={poseSource}
+            onPoseSourceChange={setPoseSource}
+            trajT={trajT}
+            onTrajTChange={setTrajT}
+            trajAvailable={trajAvailable}
+            trajDurationS={trajDurationS}
+            displayPose={displayPose}
+            trackingResult={trackingResult}
+            onSweepPointClick={handleSweepPointClick}
+            onTrajPointClick={handleTrajPointClick}
+            trackingSlot={
+              <TrackingPanel
+                params={tracking}
+                onChange={setTracking}
+                result={trackingResult}
+                formulaError={formulaError}
+                sensorNames={sensors.map((s) => s.name)}
+                onExport={doExportTracking}
+                onAutoTune={runAutoTune}
+                ranges={trackingRanges}
+                onRangeChange={handleRangeChange}
+                onChartPointClick={handleTrajPointClick}
+              />
+            }
+          />
+        </aside>
+        </FloatingLayerContext.Provider>
+      </div>
+    </div>
+  );
+}
