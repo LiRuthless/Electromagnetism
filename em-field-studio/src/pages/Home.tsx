@@ -3,8 +3,19 @@
  * 布局：左侧参数面板（赛道编辑 + 物理参数）｜ 中央大画布 ｜ 右侧电感面板。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import {
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+} from 'lucide-react';
+import { usePanelRef, type Layout } from 'react-resizable-panels';
 import { Button } from '@/components/ui/button';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -103,6 +114,37 @@ import {
 /** 程序版本号（与 package.json 同步；打包 exe 文件名含此版本） */
 export const APP_VERSION = '0.1.0';
 
+/**
+ * 左右面板宽度布局持久化（程序设计说明.md §3.8，2026-08-15 起面板可拖拽调宽）：
+ * react-resizable-panels 的 Layout（panel id → flexGrow），独立 localStorage key，
+ * 与 appState 解耦——布局损坏只影响面板宽度，不丢工作状态。
+ */
+const PANEL_LAYOUT_KEY = 'em-field-studio/panel-layout';
+
+function loadPanelLayout(): Layout | null {
+  try {
+    const raw = localStorage.getItem(PANEL_LAYOUT_KEY);
+    if (!raw) return null;
+    const v: unknown = JSON.parse(raw);
+    if (typeof v !== 'object' || v === null || Array.isArray(v)) return null;
+    const out: Layout = {};
+    for (const [k, n] of Object.entries(v)) {
+      if (typeof n === 'number' && Number.isFinite(n) && n > 0) out[k] = n;
+    }
+    return Object.keys(out).length > 0 ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePanelLayout(layout: Layout): void {
+  try {
+    localStorage.setItem(PANEL_LAYOUT_KEY, JSON.stringify(layout));
+  } catch {
+    /* 忽略写入失败 */
+  }
+}
+
 function arcPendingToSeg(p: ArcPending): SegDef {
   return {
     kind: 'arc',
@@ -150,6 +192,47 @@ export default function Home() {
   const [trajT, setTrajT] = useState(restored?.trajT ?? 0);
   // 左侧栏收起状态（程序设计说明.md §3.1）
   const [leftCollapsed, setLeftCollapsed] = useState(restored?.leftCollapsed ?? false);
+  // 右侧栏收起状态（2026-08-15 新增，会话内内存状态不持久化）
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+  // 面板宽度布局（可拖拽调宽，localStorage 持久化，仅首次挂载读取）
+  const [savedPanelLayout] = useState<Layout | null>(() => loadPanelLayout());
+  const leftPanelRef = usePanelRef();
+  const rightPanelRef = usePanelRef();
+  const layoutSaveTimer = useRef<number | null>(null);
+  // 面板尺寸变化 -> 防抖 300ms 保存布局
+  const handlePanelLayoutChange = useCallback((layout: Layout) => {
+    if (layoutSaveTimer.current !== null) window.clearTimeout(layoutSaveTimer.current);
+    layoutSaveTimer.current = window.setTimeout(() => savePanelLayout(layout), 300);
+  }, []);
+  // 收起/展开按钮 -> 面板 imperative API；拖到最小宽度以下自动收起时由 onResize 回同步状态
+  useEffect(() => {
+    const p = leftPanelRef.current;
+    if (!p) return;
+    if (leftCollapsed && !p.isCollapsed()) p.collapse();
+    else if (!leftCollapsed && p.isCollapsed()) p.expand();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leftCollapsed]);
+  useEffect(() => {
+    const p = rightPanelRef.current;
+    if (!p) return;
+    if (rightCollapsed && !p.isCollapsed()) p.collapse();
+    else if (!rightCollapsed && p.isCollapsed()) p.expand();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rightCollapsed]);
+  const handleLeftPanelResize = useCallback(
+    (size: { asPercentage: number; inPixels: number }) => {
+      const c = size.inPixels <= 40;
+      setLeftCollapsed((prev) => (prev === c ? prev : c));
+    },
+    [],
+  );
+  const handleRightPanelResize = useCallback(
+    (size: { asPercentage: number; inPixels: number }) => {
+      const c = size.inPixels <= 40;
+      setRightCollapsed((prev) => (prev === c ? prev : c));
+    },
+    [],
+  );
   // 折线图浮动状态（程序设计说明.md §3.5，appState v6）与循迹滑块自定义量程（程序设计说明.md §4.2，appState v6）
   const [floatingCharts, setFloatingCharts] = useState<FloatingChartsMap>(
     restored?.floatingCharts ?? {},
@@ -1031,31 +1114,49 @@ export default function Home() {
           </Button>
         </div>
       </header>
-      <div className="flex min-h-0 flex-1">
-        <FloatingLayerContext.Provider value={floatingCtx}>
-        {/* 左侧：赛道编辑 + 参数（程序设计说明.md §3.1：可收起为窄条，状态随 appState 持久化） */}
-        <aside
-          className={`shrink-0 border-r border-slate-800 bg-slate-900/60 ${
-            leftCollapsed ? 'flex w-8 flex-col items-center overflow-hidden' : 'w-[330px] overflow-y-auto'
-          }`}
+      <FloatingLayerContext.Provider value={floatingCtx}>
+      {/* 左右面板可拖拽调宽（程序设计说明.md §3.8），宽度布局持久化于独立 key */}
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="min-h-0 flex-1"
+        defaultLayout={savedPanelLayout ?? undefined}
+        onLayoutChange={handlePanelLayoutChange}
+      >
+        {/* 左侧：赛道编辑 + 参数（可收起为窄条，状态随 appState 持久化） */}
+        <ResizablePanel
+          id="left"
+          panelRef={leftPanelRef}
+          collapsible
+          collapsedSize="32px"
+          minSize="240px"
+          defaultSize="330px"
+          maxSize="45%"
+          onResize={handleLeftPanelResize}
+          className="h-full"
         >
+        <aside className="h-full overflow-hidden border-r border-slate-800 bg-slate-900/60">
           {leftCollapsed ? (
-            <button
-              className="mt-2 flex h-6 w-6 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
-              title="展开赛道编辑面板"
-              onClick={() => setLeftCollapsed(false)}
-            >
-              <PanelLeftOpen size={14} />
-            </button>
+            <div className="flex flex-col items-center pt-2">
+              <button
+                className="flex h-6 w-6 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
+                title="展开赛道编辑面板"
+                onClick={() => setLeftCollapsed(false)}
+              >
+                <PanelLeftOpen size={14} />
+              </button>
+            </div>
           ) : (
-            <>
-              <div className="flex justify-end px-2 pt-1.5">
+            <div className="h-full overflow-y-auto">
+              <div className="sticky top-0 z-10 flex h-8 items-center justify-between border-b border-slate-800/80 bg-slate-900/95 px-3 backdrop-blur">
+                <span className="text-[11px] font-semibold tracking-wide text-slate-400">
+                  赛道编辑
+                </span>
                 <button
-                  className="flex h-5 w-5 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700"
-                  title="收起面板"
+                  className="flex h-5 w-5 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                  title="收起面板（拖动边缘可调宽）"
                   onClick={() => setLeftCollapsed(true)}
                 >
-                  <PanelLeftClose size={12} />
+                  <PanelLeftClose size={13} />
                 </button>
               </div>
               <TrackEditor
@@ -1098,11 +1199,14 @@ export default function Home() {
                 onExportTrackJSON={() => exportTrackJSON(trackDef)}
                 onImportTrackJSON={handleImportTrackJSON}
               />
-            </>
+            </div>
           )}
         </aside>
+        </ResizablePanel>
+        <ResizableHandle className="w-[3px] bg-transparent transition-colors hover:bg-cyan-700/60" />
         {/* 中央：磁场俯视图（relative 供折线图浮动层定位，程序设计说明.md §3.5） */}
-        <main className="relative min-w-0 flex-1">
+        <ResizablePanel id="canvas" minSize="30%" className="h-full">
+        <main className="relative h-full min-w-0">
           <FieldCanvas
             key={resetCounter}
             elements={fieldElements}
@@ -1154,9 +1258,46 @@ export default function Home() {
           {/* 折线图浮动层（程序设计说明.md §3.5 portal 宿主） */}
           <FloatingLayerHost hostRef={setFloatLayerEl} />
         </main>
-        {/* 右侧：电感面板（含循迹控制区，程序设计说明.md §3.3 顺序） */}
-        <aside className="w-[350px] shrink-0 overflow-y-auto border-l border-slate-800 bg-slate-900/60">
-          <SensorPanel
+        </ResizablePanel>
+        <ResizableHandle className="w-[3px] bg-transparent transition-colors hover:bg-cyan-700/60" />
+        {/* 右侧：电感面板（含循迹控制区，程序设计说明.md §3.3 顺序；可拖拽调宽/收起，§3.8） */}
+        <ResizablePanel
+          id="right"
+          panelRef={rightPanelRef}
+          collapsible
+          collapsedSize="32px"
+          minSize="300px"
+          defaultSize="350px"
+          maxSize="55%"
+          onResize={handleRightPanelResize}
+          className="h-full"
+        >
+        <aside className="h-full overflow-hidden border-l border-slate-800 bg-slate-900/60">
+          {rightCollapsed ? (
+            <div className="flex flex-col items-center pt-2">
+              <button
+                className="flex h-6 w-6 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
+                title="展开电感与仿真面板"
+                onClick={() => setRightCollapsed(false)}
+              >
+                <PanelRightOpen size={14} />
+              </button>
+            </div>
+          ) : (
+            <div className="h-full overflow-y-auto">
+              <div className="sticky top-0 z-10 flex h-8 items-center justify-between border-b border-slate-800/80 bg-slate-900/95 px-3 backdrop-blur">
+                <span className="text-[11px] font-semibold tracking-wide text-slate-400">
+                  电感与仿真
+                </span>
+                <button
+                  className="flex h-5 w-5 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                  title="收起面板（拖动边缘可调宽）"
+                  onClick={() => setRightCollapsed(true)}
+                >
+                  <PanelRightClose size={13} />
+                </button>
+              </div>
+              <SensorPanel
             sensors={sensors}
             onSensorsChange={setSensors}
             pose={poseState}
@@ -1199,9 +1340,12 @@ export default function Home() {
               />
             }
           />
+            </div>
+          )}
         </aside>
-        </FloatingLayerContext.Provider>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+      </FloatingLayerContext.Provider>
     </div>
   );
 }

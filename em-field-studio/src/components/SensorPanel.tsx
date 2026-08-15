@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MiniNum } from '@/components/ui/mini-num';
 import {
   Select,
   SelectContent,
@@ -21,8 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
+import PanelSection from './PanelSection';
 import type { AxisPreset, SensorDef, SensorReading } from '../mathmodel/sensor';
 import { axisVector, INDUCTOR_SPEC } from '../mathmodel/sensor';
 import type { SweepResult } from '../mathmodel/sweep';
@@ -96,10 +97,10 @@ interface Props {
 
 /** 敏感轴预设：以水平面内（横向 x / 纵向 y）为主，竖直 z 保留可用，custom 任意角度扩展 */
 const AXIS_LABEL: Record<AxisPreset, string> = {
-  x: '横向 x（感 Bx，左右）',
-  y: '纵向 y（感 By，车头方向）',
-  z: '竖直 z（感 Bz，保留）',
-  custom: '自定义任意角度',
+  x: '横向 x（感 Bx）',
+  y: '纵向 y（感 By）',
+  z: '竖直 z（感 Bz）',
+  custom: '自定义角度',
 };
 
 /**
@@ -344,23 +345,31 @@ export default function SensorPanel(props: Props) {
   };
 
   return (
-    <div className="space-y-4 p-3">
-      {/* 数据源 */}
-      <section>
-        <div className="mb-2 text-xs font-semibold text-slate-300">采集数据源</div>
+    <div className="space-y-2.5 p-2.5">
+      {/* 数据源（程序设计说明.md §3.8：可折叠分区卡片） */}
+      <PanelSection title="采集数据源">
+        <div className="pt-1">
         <Select
           value={props.sourceKind}
           onValueChange={(v) => props.onSourceKindChange(v as SourceKind)}
         >
-          <SelectTrigger className="h-8 bg-slate-900 text-xs">
+          <SelectTrigger className="h-8 w-full bg-slate-950/60 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="simulation">仿真模型（可用）</SelectItem>
-            <SelectItem value="measured-fit">实测拟合模型（方案A 解析标定）</SelectItem>
-            <SelectItem value="measured-phys">实测物理公式+偏差校正（方案B）</SelectItem>
-            <SelectItem value="serial">串口实车 ADC（预留接口，待接入）</SelectItem>
-            <SelectItem value="file">标定 Excel/CSV 导入（已实现，见下方实测数据标定）</SelectItem>
+            <SelectItem value="simulation">仿真模型</SelectItem>
+            <SelectItem value="measured-fit" title="实测拟合模型（方案A 解析标定）">
+              实测拟合 · 方案A
+            </SelectItem>
+            <SelectItem value="measured-phys" title="实测物理公式+偏差校正（方案B）">
+              实测物理+偏差 · 方案B
+            </SelectItem>
+            <SelectItem value="serial" title="串口实车 ADC（预留接口，待接入）">
+              串口实车 ADC（预留）
+            </SelectItem>
+            <SelectItem value="file" title="标定 Excel/CSV 导入（见下方实测数据标定区）">
+              标定 CSV 导入（见下方）
+            </SelectItem>
           </SelectContent>
         </Select>
         {isMeasuredSource && !measured && (
@@ -375,13 +384,15 @@ export default function SensorPanel(props: Props) {
               : '文件导入已实现：请直接使用下方"实测数据标定"区导入 CSV。'}
           </div>
         )}
-      </section>
+        </div>
+      </PanelSection>
 
-      {/* 实测数据标定 */}
-      <section className="mt-4">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-300">实测数据标定</span>
-          <div className="flex gap-1">
+      {/* 实测数据标定（选中实测源或已导入数据时默认展开） */}
+      <PanelSection
+        title="实测数据标定"
+        defaultOpen={isMeasuredSource || !!measured}
+        actions={
+          <>
             <Button
               variant="outline"
               size="sm"
@@ -411,8 +422,10 @@ export default function SensorPanel(props: Props) {
                 e.target.value = '';
               }}
             />
-          </div>
-        </div>
+          </>
+        }
+      >
+        <div className="pt-1">
         <div className="mb-1.5 text-[10px] leading-4 text-slate-500">
           格式：表头 <span className="font-mono">e_cm,L1,R1,M1,...</span>，首列横向偏差
           （e_cm/e_mm/e(cm)/e(mm)/偏差 均可，cm 自动换算 mm），其余列通道名需与电感名一致；
@@ -512,13 +525,12 @@ export default function SensorPanel(props: Props) {
             未导入实测数据 —— 导入后此处显示拟合结果与预览图
           </div>
         )}
-      </section>
+        </div>
+      </PanelSection>
 
-      <Separator className="bg-slate-700" />
-
-      {/* 车体位姿 */}
-      <section className="space-y-3">
-        <div className="text-xs font-semibold text-slate-300">车体位姿</div>
+      {/* 车体位姿（程序设计说明.md §3.3；当前值可直接键入，程序设计说明.md §3.8） */}
+      <PanelSection title="车体位姿">
+        <div className="space-y-3 pt-1">
         {/* 位姿来源切换（程序设计说明.md §4.4）：手动位姿 / 跟随仿真轨迹 */}
         <div className="flex gap-1.5">
           <Button
@@ -582,9 +594,23 @@ export default function SensorPanel(props: Props) {
         ) : (
           <>
             <div>
-              <div className="mb-1 flex justify-between text-xs text-slate-400">
+              <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
                 <span>沿线位置 s</span>
-                <span className="font-mono text-slate-200">{pose.sMm.toFixed(0)} mm</span>
+                <span className="flex items-center gap-1">
+                  <MiniNum
+                    value={pose.sMm}
+                    digits={0}
+                    className="h-[22px] w-16 text-[11px] text-slate-200"
+                    title="当前值（可直接键入，范围 0 ~ 赛道总长）"
+                    onCommit={(v) =>
+                      onPoseChange({
+                        ...pose,
+                        sMm: Math.min(Math.max(props.trackLength * 1000, 10), Math.max(0, v)),
+                      })
+                    }
+                  />
+                  <span className="text-[9px] text-slate-500">mm</span>
+                </span>
               </div>
               <Slider
                 value={[pose.sMm]}
@@ -595,9 +621,20 @@ export default function SensorPanel(props: Props) {
               />
             </div>
             <div>
-              <div className="mb-1 flex justify-between text-xs text-slate-400">
+              <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
                 <span>横向偏差 e（右 +）</span>
-                <span className="font-mono text-slate-200">{pose.eMm} mm</span>
+                <span className="flex items-center gap-1">
+                  <MiniNum
+                    value={pose.eMm}
+                    digits={0}
+                    className="h-[22px] w-16 text-[11px] text-slate-200"
+                    title="当前值（可直接键入，范围 −250 ~ 250）"
+                    onCommit={(v) =>
+                      onPoseChange({ ...pose, eMm: Math.min(250, Math.max(-250, Math.round(v))) })
+                    }
+                  />
+                  <span className="text-[9px] text-slate-500">mm</span>
+                </span>
               </div>
               <Slider
                 value={[pose.eMm]}
@@ -608,9 +645,20 @@ export default function SensorPanel(props: Props) {
               />
             </div>
             <div>
-              <div className="mb-1 flex justify-between text-xs text-slate-400">
+              <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
                 <span>航向角 ψ（右 +）</span>
-                <span className="font-mono text-slate-200">{pose.psiDeg}°</span>
+                <span className="flex items-center gap-1">
+                  <MiniNum
+                    value={pose.psiDeg}
+                    digits={1}
+                    className="h-[22px] w-16 text-[11px] text-slate-200"
+                    title="当前值（可直接键入，范围 −30 ~ 30）"
+                    onCommit={(v) =>
+                      onPoseChange({ ...pose, psiDeg: Math.min(30, Math.max(-30, v)) })
+                    }
+                  />
+                  <span className="text-[9px] text-slate-500">°</span>
+                </span>
               </div>
               <Slider
                 value={[pose.psiDeg]}
@@ -623,9 +671,18 @@ export default function SensorPanel(props: Props) {
           </>
         )}
         <div>
-          <div className="mb-1 flex justify-between text-xs text-slate-400">
+          <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
             <span>标定 Vpp（贴线 @20kHz/100mA）</span>
-            <span className="font-mono text-slate-200">{vppAnchor.toFixed(1)} V</span>
+            <span className="flex items-center gap-1">
+              <MiniNum
+                value={vppAnchor}
+                digits={1}
+                className="h-[22px] w-16 text-[11px] text-slate-200"
+                title="当前值（可直接键入，范围 5 ~ 7 V）"
+                onCommit={(v) => props.onVppAnchorChange(Math.min(7, Math.max(5, v)))}
+              />
+              <span className="text-[9px] text-slate-500">V</span>
+            </span>
           </div>
           <Slider
             value={[vppAnchor]}
@@ -638,22 +695,19 @@ export default function SensorPanel(props: Props) {
             反推 k = {kCal.toExponential(3)} V/T（B_touch = μ₀I/2π·3.25mm ≈ 6.154μT）
           </div>
         </div>
-      </section>
-
-      <Separator className="bg-slate-700" />
+        </div>
+      </PanelSection>
 
       {/* 实时读数：折线剖面图 */}
-      <section>
-        <div className="mb-2 text-xs font-semibold text-slate-300">
-          电感读数剖面 |u| = k·cosθ·B（Vpp）
+      <PanelSection title="电感读数剖面" hint="|u| = k·cosθ·B（Vpp）">
+        <div className="pt-1">
+          <SensorChart sensors={sensors} readings={readings} />
         </div>
-        <SensorChart sensors={sensors} readings={readings} />
-      </section>
-
-      <Separator className="bg-slate-700" />
+      </PanelSection>
 
       {/* 全程扫描 / 循迹轨迹电感值：双图切换（程序设计说明.md §3.3），各自独立缩放、均可浮出（程序设计说明.md §3.5） */}
-      <section>
+      <PanelSection title="全程扫描 / 循迹轨迹图">
+        <div className="pt-1">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-1">
             {(['sweep', 'traj'] as const).map((tab) => (
@@ -717,18 +771,18 @@ export default function SensorPanel(props: Props) {
             }
           </FloatingChart>
         </div>
-      </section>
+        </div>
+      </PanelSection>
 
       {/* 循迹控制区（程序设计说明.md §3.3：上移到电感布局编辑之前） */}
       {props.trackingSlot}
 
-      <Separator className="bg-slate-700" />
-
-      {/* 布局编辑 */}
-      <section>
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-300">电感布局</span>
-          <div className="flex gap-1">
+      {/* 电感布局（程序设计说明.md §3.8：操作按钮移入分区标题栏） */}
+      <PanelSection
+        title="电感布局"
+        hint={`${sensors.length} 个`}
+        actions={
+          <>
             <Button variant="outline" size="sm" className="h-6 border-slate-600 bg-slate-800 px-2 text-[11px]" onClick={addSensor}>
               +添加
             </Button>
@@ -754,8 +808,10 @@ export default function SensorPanel(props: Props) {
                 e.target.value = '';
               }}
             />
-          </div>
-        </div>
+          </>
+        }
+      >
+        <div className="pt-1">
         <div className="mb-1.5 text-[10px] text-slate-500">
           规格：{INDUCTOR_SPEC}，加电容小板；6mm 直径 ≪ 探测距离，按点探头（几何中心）采样
         </div>
@@ -807,7 +863,10 @@ export default function SensorPanel(props: Props) {
                   value={s.axisPreset}
                   onValueChange={(v) => setSensor(s.id, { axisPreset: v as AxisPreset })}
                 >
-                  <SelectTrigger className="h-6 w-28 bg-slate-900 text-[11px]">
+                  <SelectTrigger
+                    className="h-6 min-w-0 flex-1 bg-slate-950/60 px-2 text-[11px]"
+                    title="电感敏感轴方向"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -835,21 +894,19 @@ export default function SensorPanel(props: Props) {
                     ))}
                   </div>
                 )}
-                <Badge variant="outline" className="ml-auto border-slate-600 text-[10px] text-slate-400">
+                <Badge variant="outline" className="ml-auto shrink-0 border-slate-600 text-[10px] text-slate-400">
                   单位 mm
                 </Badge>
               </div>
             </div>
           ))}
         </div>
-      </section>
+        </div>
+      </PanelSection>
 
-      <Separator className="bg-slate-700" />
-
-      {/* 公式 */}
-      <section className="rounded border border-slate-700 bg-slate-800/40 p-2.5">
-        <div className="mb-1.5 text-xs font-semibold text-slate-300">物理公式</div>
-        <div className="space-y-1 font-mono text-[11px] leading-5 text-slate-300">
+      {/* 物理公式与模型假设（参考信息，默认折叠） */}
+      <PanelSection title="物理公式与模型假设" defaultOpen={false}>
+        <div className="space-y-1 pt-1 font-mono text-[11px] leading-5 text-slate-300">
           <div>无限长直导线：B = μ₀I / (2πr)</div>
           <div>毕奥-萨伐尔：dB⃗ = (μ₀I/4π)·dl⃗×r⃗/r³</div>
           <div>电感响应：|u(t)| = k·cosθ·B（Vpp，θ = 敏感轴与 B⃗ 夹角）</div>
@@ -886,7 +943,7 @@ export default function SensorPanel(props: Props) {
             两轮差速运动学：v = (v_R+v_L)/2，ω = (v_R−v_L)/W；θ += ω·dt，x += v·cosθ·dt，y += v·sinθ·dt
           </div>
         </div>
-      </section>
+      </PanelSection>
     </div>
   );
 }

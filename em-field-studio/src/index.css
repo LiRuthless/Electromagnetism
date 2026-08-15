@@ -73,3 +73,29 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ---- 深色细滚动条（2026-08-15 UI 改造，程序设计说明.md §3.8） ---- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgb(51 65 85 / 0.55);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(100 116 139 / 0.7);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* 文本选中色：与全局 cyan 强调色一致 */
+::selection {
+  background: rgb(34 211 238 / 0.28);
+}

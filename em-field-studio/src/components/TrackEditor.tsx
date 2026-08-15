@@ -16,11 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { segmentLength, CLOSE_SNAP_M, type SegDef, type TrackDef } from '../mathmodel/track';
+import PanelSection from './PanelSection';
 import type { SavedTrack } from '../utils/exporters';
 import type { FieldComponent } from './FieldCanvas';
 
@@ -266,7 +266,7 @@ export default function TrackEditor(props: Props) {
               />
               <span className="text-[10px] text-slate-500">mm边长</span>
               <Select value={hexDir} onValueChange={(v) => setHexDir(v as 'left' | 'right')}>
-                <SelectTrigger className="h-6 w-14 bg-slate-900 text-[10px]">
+                <SelectTrigger className="h-6 w-[70px] bg-slate-900 px-2 text-[10px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -354,16 +354,14 @@ export default function TrackEditor(props: Props) {
       )}
 
       {/* 段长标注开关 */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-0.5">
         <Label className="text-xs text-slate-400">显示每段长度标注</Label>
         <Switch checked={props.showSegLengths} onCheckedChange={props.onShowSegLengthsChange} />
       </div>
 
-      <Separator className="bg-slate-700" />
-
-      {/* 赛道库 */}
-      <section className="space-y-2">
-        <div className="text-xs font-semibold text-slate-300">赛道库（本地保存）</div>
+      {/* 赛道库（程序设计说明.md §3.1：可折叠分区） */}
+      <PanelSection title="赛道库" hint="本地保存">
+        <div className="space-y-2 pt-1">
         <div className="flex gap-1.5">
           <Input
             className="h-7 bg-slate-900 text-xs"
@@ -453,13 +451,12 @@ export default function TrackEditor(props: Props) {
             }}
           />
         </div>
-      </section>
-
-      <Separator className="bg-slate-700" />
+        </div>
+      </PanelSection>
 
       {/* 全局参数 */}
-      <section className="space-y-3">
-        <div className="text-xs font-semibold text-slate-300">物理参数</div>
+      <PanelSection title="物理参数">
+        <div className="space-y-3 pt-1">
         <div>
           <div className="mb-1 flex justify-between text-xs text-slate-400">
             <span>赛道电流 I</span>
@@ -502,7 +499,7 @@ export default function TrackEditor(props: Props) {
             value={String(params.gridStepMm)}
             onValueChange={(v) => onParamsChange({ ...params, gridStepMm: Number(v) })}
           >
-            <SelectTrigger className="h-7 w-24 bg-slate-900 text-xs">
+            <SelectTrigger className="h-7 w-28 bg-slate-900 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -518,7 +515,7 @@ export default function TrackEditor(props: Props) {
             value={params.component}
             onValueChange={(v) => onParamsChange({ ...params, component: v as FieldComponent })}
           >
-            <SelectTrigger className="h-7 w-24 bg-slate-900 text-xs">
+            <SelectTrigger className="h-7 w-36 bg-slate-900 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -537,24 +534,25 @@ export default function TrackEditor(props: Props) {
             />
           </div>
         )}
-      </section>
-
-      <Separator className="bg-slate-700" />
-
-      {/* 计算状态 */}
-      <section className="space-y-1 font-mono text-[11px] text-slate-500">
-        <div>离散电流元：{props.elementCount} 段</div>
-        <div>
-          网格：{props.gridCells.toLocaleString()} 单元（上限 160k）
-          {props.gridDegraded && props.effStepMm !== undefined && (
-            <span className="ml-1 text-amber-400">已自动降档至 {props.effStepMm}mm</span>
-          )}
         </div>
-        <div>赛道总长：{(props.totalLengthM * 1000).toFixed(0)} mm</div>
-        <div>
-          {props.computing ? '计算中…' : `上次重算 ${props.elapsedMs.toFixed(0)} ms`}
+      </PanelSection>
+
+      {/* 计算状态（低频信息，默认折叠，程序设计说明.md §3.1） */}
+      <PanelSection title="计算状态" defaultOpen={false}>
+        <div className="space-y-1 pt-1 font-mono text-[11px] text-slate-500">
+          <div>离散电流元：{props.elementCount} 段</div>
+          <div>
+            网格：{props.gridCells.toLocaleString()} 单元（上限 160k）
+            {props.gridDegraded && props.effStepMm !== undefined && (
+              <span className="ml-1 text-amber-400">已自动降档至 {props.effStepMm}mm</span>
+            )}
+          </div>
+          <div>赛道总长：{(props.totalLengthM * 1000).toFixed(0)} mm</div>
+          <div>
+            {props.computing ? '计算中…' : `上次重算 ${props.elapsedMs.toFixed(0)} ms`}
+          </div>
         </div>
-      </section>
+      </PanelSection>
     </div>
   );
 }

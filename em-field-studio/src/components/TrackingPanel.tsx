@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import { MiniNum } from '@/components/ui/mini-num';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,6 +27,7 @@ import type { TrackingParams } from '../mathmodel/control';
 import type { TrackingResult } from '../mathmodel/kinematics';
 import type { TrackingRangesMap } from '../utils/appState';
 import FloatingChart from './FloatingChart';
+import PanelSection from './PanelSection';
 import { useChartZoom, ZoomResetButton, ZOOM_HINT } from './ZoomableChart';
 
 interface Props {
@@ -56,46 +57,7 @@ interface Props {
   onChartPointClick: (tSec: number) => void;
 }
 
-/** 小型数字输入（失焦/Enter 提交；键入过程不回写，避免半成品数值打断输入） */
-function MiniNum({
-  value,
-  onCommit,
-  className,
-  title,
-  digits,
-}: {
-  value: number;
-  onCommit: (v: number) => void;
-  className?: string;
-  title?: string;
-  digits?: number;
-}) {
-  const [s, setS] = useState<string | null>(null);
-  const fmt = (v: number) => {
-    const r = digits !== undefined ? v.toFixed(digits) : String(Math.round(v * 1000) / 1000);
-    return r;
-  };
-  const commit = () => {
-    if (s !== null) {
-      const v = parseFloat(s);
-      if (Number.isFinite(v)) onCommit(v);
-      setS(null);
-    }
-  };
-  return (
-    <input
-      className={`h-5 rounded border border-slate-700 bg-slate-900 px-1 text-center font-mono text-[10px] text-slate-300 outline-none focus:border-cyan-600 ${className ?? ''}`}
-      value={s ?? fmt(value)}
-      title={title}
-      onChange={(e) => setS(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        e.stopPropagation();
-      }}
-    />
-  );
-}
+/** 小型数字输入已提取为共享组件：@/components/ui/mini-num（程序设计说明.md §3.8） */
 
 /**
  * 滑块调参行（程序设计说明.md §4.2 改造）：滑块两端最小/最大值可点击编辑（自定义量程持久化），
@@ -415,21 +377,18 @@ export default function TrackingPanel({
   }, [result]);
 
   return (
-    <div className="space-y-3 p-3 pt-0">
-      <Separator className="bg-slate-700" />
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-300">循迹闭环仿真</span>
-          <div className="flex items-center gap-2">
-            <Label className="text-[10px] text-slate-500">{params.enabled ? '已启用' : '已关闭'}</Label>
-            <Switch
-              checked={params.enabled}
-              onCheckedChange={(v) => set({ enabled: v })}
-              aria-label="启用循迹闭环仿真"
-            />
-          </div>
-        </div>
-
+    <PanelSection
+      title="循迹闭环仿真"
+      hint={params.enabled ? undefined : '已关闭'}
+      actions={
+        <Switch
+          checked={params.enabled}
+          onCheckedChange={(v) => set({ enabled: v })}
+          aria-label="启用循迹闭环仿真"
+        />
+      }
+    >
+      <div className="space-y-3 pt-1">
         {!params.enabled && (
           <div className="rounded border border-slate-700/60 px-2 py-2.5 text-[11px] leading-4 text-slate-500">
             开启后：电感读数 → 误差公式 → PD → 两轮差速轮速 → 运动学积分，
@@ -637,7 +596,7 @@ export default function TrackingPanel({
             )}
           </>
         )}
-      </section>
-    </div>
+      </div>
+    </PanelSection>
   );
 }
