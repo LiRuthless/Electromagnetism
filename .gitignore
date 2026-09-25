@@ -39,3 +39,8 @@ desktop.ini
 *.log
 *.tmp
 *.local
+
+# ================= MATLAB / Simulink =================
+slprj/
+*.slxc
+*.autosave

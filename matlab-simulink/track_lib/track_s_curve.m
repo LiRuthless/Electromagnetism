@@ -1,0 +1,9 @@
+function trk = track_s_curve()
+%TRACK_S_CURVE S 弯：直 0.5 m → 左弧 R0.5/60° → 右弧 R0.5/60° → 直 0.5 m。
+trk.name = 's_curve';
+trk.segs = [ seg_line(0.5), ...
+             seg_arc(0.5, 60, 'left'), ...
+             seg_arc(0.5, 60, 'right'), ...
+             seg_line(0.5) ];
+trk.closed = false;
+end
