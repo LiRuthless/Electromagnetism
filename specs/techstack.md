@@ -63,8 +63,9 @@ MATLAB 侧：`matlab-simulink/` 下 `build_all`（一键建模）、`runAll`（�
 3. **appState schema 纪律**：结构变更须 `APP_STATE_VERSION +1`；新增字段优先逐字段回退默认值（如 motorTauMs 未升版本的先例）；启动校验失败回退全默认，**绝不崩溃**。
 4. **两阶段发布**：改完代码只出预览版（build/dev），用户明确同意后才打 exe。
 5. **表达式解析禁用 `eval`**：误差公式走递归下降解析（`compileFormula()`）。
-6. **Electron 安全**：`contextIsolation` 开、`nodeIntegration` 关，单窗口加载 `dist/index.html`。
-7. **Git 约定**：改动处理完毕后 `git add -A && git commit` 一次（message 前缀 `docs:` / `model:` / `feat:` / `fix:` / `chore:` + 中文要点）；**默认只 commit 不 push**；规约与代码同仓库同流程，宪章修改走独立分支。
+6. **控制器 ABI 稳定**：WASM 车载控制器的宿主导入函数表与任务入口约定（`specs/features/13-wasm-controller/`）一旦发布，变更必须升 ABI 版本，并同步 `em-field-studio/controller-template/` 与自检 fixture；旧 ABI 的 wasm 仍可加载或明确报版本错误，**绝不静默误跑**。
+7. **Electron 安全**：`contextIsolation` 开、`nodeIntegration` 关，单窗口加载 `dist/index.html`。
+8. **Git 约定**：改动处理完毕后 `git add -A && git commit` 一次（message 前缀 `docs:` / `model:` / `feat:` / `fix:` / `chore:` + 中文要点）；**默认只 commit 不 push**；规约与代码同仓库同流程，宪章修改走独立分支。
 
 ## 目录与代码规范
 

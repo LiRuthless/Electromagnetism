@@ -9,6 +9,7 @@
 - **SDD 文档体系**（2026-09-30）：`specs/`（mission / techstack / roadmap + 功能规约 10 套 + research 实验建模记录）、`AGENTS.md`、本文档；原《数学模型.md》《程序设计说明.md》内容全部迁入 specs/，原文归档 `archive/docs/legacy/`。
 
 ### Changed
+- **宪章变更（2026-10-01，`charter/vehicle-code-in-scope`）**：实车嵌入式控制代码由"范围外"调整为"以 WASM 形式载入仿真验证"（mission.md）；techstack.md 新增硬性约束"控制器 ABI 稳定"（原 Electron 安全 / Git 约定顺延为 7/8）；roadmap.md 立项 Phase 12（仿真器架构分层）与 Phase 13（WASM 车载控制器）。
 - 设计基准制度由"双文档"改为 SDD 规约体系；此后设计变更先改对应 feature 规约（见 `AGENTS.md` 工作规则）。
 - **工作区整理**（2026-10-01）：文献资料统一收编 `archive/`（docs/ + presets/ + references/ + scripts/extract_papers.py + papers/（仅本地））；删除 `backup/` 旧版 exe、`release/` 重复 exe、`matlab-simulink/outputs/` 调试残留与 `slprj/` 缓存；发布渠道改为上传 GitHub Releases（BUILD-EXE.md 与 08 规约三件套同步），本地不再保留旧版备份；`BUILD-EXE.md` 头部旧约定（每次改代码直接重打包）修正为两阶段发布表述。
 - **《项目交接文档.md》完成使命删除**（2026-10-01）：独有内容已并入正式体系——代码架构地图（文件↔规约对照）与本机 Electron 用户数据路径 → `specs/techstack.md`；协作画像（口述变更、公式截图、文档滞后核对源码）→ `AGENTS.md` 工作规则；时间线叙事由本文档与 git 历史承接。
