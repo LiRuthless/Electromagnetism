@@ -6,7 +6,7 @@
 
 ## 问题
 
-`specs/features/01`–`05` 给出的模型结构由物理定律与运动学推导而来，属于**纯理论模型**——其全部参数（标定系数 k、电机时间常数 τ_m、轮距 W、v_base 等）仅取名义先验值，缺少实车数据支持，尚不能脱离实验独立使用。如何确定这些参数、获取实测数据、量化模型与实车的偏差？
+`specs/features/model/01`–`05` 给出的模型结构由物理定律与运动学推导而来，属于**纯理论模型**——其全部参数（标定系数 k、电机时间常数 τ_m、轮距 W、v_base 等）仅取名义先验值，缺少实车数据支持，尚不能脱离实验独立使用。如何确定这些参数、获取实测数据、量化模型与实车的偏差？
 
 ## 候选方案对比
 
@@ -17,11 +17,11 @@
 
 ## 结论与建议
 
-按实验在建模中的角色分三类九项：**参数标定实验**（实验 1–5，确定理论模型中无法预知的参数）、**数据建模实验**（实验 6/7，为 specs/features/04-measured-data-model 提供建模输入）、**偏差分析实验**（实验 8/9，量化模型与实车的偏差、界定适用范围、支撑参数复标定）。
+按实验在建模中的角色分三类九项：**参数标定实验**（实验 1–5，确定理论模型中无法预知的参数）、**数据建模实验**（实验 6/7，为 specs/features/model/04-measured-data-model 提供建模输入）、**偏差分析实验**（实验 8/9，量化模型与实车的偏差、界定适用范围、支撑参数复标定）。
 
 **执行顺序**：按依赖关系执行——先做电感环节标定（实验 1→2→3），再做数据建模扫描（实验 6/7，依赖实验 1 的标定与实验 3 的敏感轴确认），然后整车参数辨识（实验 4/5），最后偏差分析（实验 8/9，依赖全部前置参数）；每项判据达标后再进入下一项，不达标先回查前置参数（k、h、τ_m）再复测。
 
-> **性质声明**：以下为**个人实验手册，仅供阅读执行，不构成程序功能需求、无需写入程序**——实验产出的参数与 CSV 数据经既有功能（见 specs/features/07-persistence-export 接口①②）或线下处理进入模型，程序无需任何改动。
+> **性质声明**：以下为**个人实验手册，仅供阅读执行，不构成程序功能需求、无需写入程序**——实验产出的参数与 CSV 数据经既有功能（见 specs/features/ui/07-persistence-export 接口①②）或线下处理进入模型，程序无需任何改动。
 
 ---
 
@@ -47,21 +47,21 @@
 
 | 类别 | 实验 | 所属模型环节 | 建模产出 | 依据公式 | 数据接口 |
 |---|---|---|---|---|---|
-| 参数标定 | 实验 1　标定系数 k 测定 | 电感响应（式 [(6.2)](../features/03-sensor-model/requirements.md#eq-6-2)–[(6.4)](../features/03-sensor-model/requirements.md#eq-6-4)，见 03-sensor-model） | 参数 k（Vpp_anchor） | 式 [(6.2)](../features/03-sensor-model/requirements.md#eq-6-2)–[(6.4)](../features/03-sensor-model/requirements.md#eq-6-4) | ③ |
-| | 实验 2　线性工作区间标定 | 电感响应（式 [(6.1)](../features/03-sensor-model/requirements.md#eq-6-1)；假设 1 适用边界） | 线性区间上界、增益 aᵢ | 式 [(6.1)](../features/03-sensor-model/requirements.md#eq-6-1)[(5.5)](../features/02-magnetic-field/requirements.md#eq-5-5)[(9.1)](#eq-9-1) | ③ |
-| | 实验 3　敏感轴方向标定 | 电感布局（03-sensor-model §6.3） | 各电感实际敏感轴方向 | 式 [(6.1)](../features/03-sensor-model/requirements.md#eq-6-1)[(9.2)](#eq-9-2) | ③ |
-| | 实验 4　电机阶跃辨识 τ_m | 电机滞后（05-tracking-control §8.4） | 参数 τ_m | 式 [(8.6)](../features/05-tracking-control/requirements.md#eq-8-6)[(9.3)](#eq-9-3)[(9.4)](#eq-9-4) | ③ |
-| | 实验 5　轮距与速度标定 | 运动学（05-tracking-control §8.5） | 参数 W、v_base | 式 [(8.8)](../features/05-tracking-control/requirements.md#eq-8-8)[(9.5)](#eq-9-5) | ③ |
-| 数据建模 | 实验 6　横向扫描 U(e) | 实测经验模型（04-measured-data-model） | 主实测数据集（接口① CSV） | 式 [(5.5)](../features/02-magnetic-field/requirements.md#eq-5-5)[(7.2)](../features/04-measured-data-model/requirements.md#eq-7-2) | ① |
-| | 实验 7　高度扫描 U(h)（可选） | 经验模型参数 h_eff | 等效高度的物理标定 | 式 [(7.2)](../features/04-measured-data-model/requirements.md#eq-7-2) | ③ |
-| 偏差分析 | 实验 8　直道收敛偏差分析 | 闭环（式 [(8.2)](../features/05-tracking-control/requirements.md#eq-8-2)[(8.9)](../features/05-tracking-control/requirements.md#eq-8-9)） | 参数复标定决策依据 | 式 [(8.2)](../features/05-tracking-control/requirements.md#eq-8-2)[(8.9)](../features/05-tracking-control/requirements.md#eq-8-9) | ③ |
+| 参数标定 | 实验 1　标定系数 k 测定 | 电感响应（式 [(6.2)](../features/model/03-sensor-model/requirements.md#eq-6-2)–[(6.4)](../features/model/03-sensor-model/requirements.md#eq-6-4)，见 03-sensor-model） | 参数 k（Vpp_anchor） | 式 [(6.2)](../features/model/03-sensor-model/requirements.md#eq-6-2)–[(6.4)](../features/model/03-sensor-model/requirements.md#eq-6-4) | ③ |
+| | 实验 2　线性工作区间标定 | 电感响应（式 [(6.1)](../features/model/03-sensor-model/requirements.md#eq-6-1)；假设 1 适用边界） | 线性区间上界、增益 aᵢ | 式 [(6.1)](../features/model/03-sensor-model/requirements.md#eq-6-1)[(5.5)](../features/model/02-magnetic-field/requirements.md#eq-5-5)[(9.1)](#eq-9-1) | ③ |
+| | 实验 3　敏感轴方向标定 | 电感布局（03-sensor-model §6.3） | 各电感实际敏感轴方向 | 式 [(6.1)](../features/model/03-sensor-model/requirements.md#eq-6-1)[(9.2)](#eq-9-2) | ③ |
+| | 实验 4　电机阶跃辨识 τ_m | 电机滞后（05-tracking-control §8.4） | 参数 τ_m | 式 [(8.6)](../features/model/05-tracking-control/requirements.md#eq-8-6)[(9.3)](#eq-9-3)[(9.4)](#eq-9-4) | ③ |
+| | 实验 5　轮距与速度标定 | 运动学（05-tracking-control §8.5） | 参数 W、v_base | 式 [(8.8)](../features/model/05-tracking-control/requirements.md#eq-8-8)[(9.5)](#eq-9-5) | ③ |
+| 数据建模 | 实验 6　横向扫描 U(e) | 实测经验模型（04-measured-data-model） | 主实测数据集（接口① CSV） | 式 [(5.5)](../features/model/02-magnetic-field/requirements.md#eq-5-5)[(7.2)](../features/model/04-measured-data-model/requirements.md#eq-7-2) | ① |
+| | 实验 7　高度扫描 U(h)（可选） | 经验模型参数 h_eff | 等效高度的物理标定 | 式 [(7.2)](../features/model/04-measured-data-model/requirements.md#eq-7-2) | ③ |
+| 偏差分析 | 实验 8　直道收敛偏差分析 | 闭环（式 [(8.2)](../features/model/05-tracking-control/requirements.md#eq-8-2)[(8.9)](../features/model/05-tracking-control/requirements.md#eq-8-9)） | 参数复标定决策依据 | 式 [(8.2)](../features/model/05-tracking-control/requirements.md#eq-8-2)[(8.9)](../features/model/05-tracking-control/requirements.md#eq-8-9) | ③ |
 | | 实验 9　全程循迹偏差分析 | 全链路（05-tracking-control §8.1） | 模型适用范围、方案B 偏差补充数据 | 信号流 §8.1 | ④ |
 
 ### 2. 模型参数标定实验
 
 **实验 1（标定系数 k 的测定）**
 
-式 [(6.4)](../features/03-sensor-model/requirements.md#eq-6-4) 给出了标定系数 k 与贴线锚点输出 Vpp_anchor 的关系，但 Vpp_anchor 取决于实车"电感 + 检波放大链路"的实际增益，理论无法预知，必须由实验测定。为确定该参数，设计贴线锚点标定实验，实验参数如表 9-3 所示。
+式 [(6.4)](../features/model/03-sensor-model/requirements.md#eq-6-4) 给出了标定系数 k 与贴线锚点输出 Vpp_anchor 的关系，但 Vpp_anchor 取决于实车"电感 + 检波放大链路"的实际增益，理论无法预知，必须由实验测定。为确定该参数，设计贴线锚点标定实验，实验参数如表 9-3 所示。
 
 **表 9-3　实验 1 参数表**
 
@@ -69,10 +69,10 @@
 |---|---|---|---|
 | f | 20 | kHz | 信号频率 |
 | I | 100 | mA | 电流幅值 |
-| d_touch | 3.25 | mm | 贴线几何距离（式 [(6.2)](../features/03-sensor-model/requirements.md#eq-6-2)） |
+| d_touch | 3.25 | mm | 贴线几何距离（式 [(6.2)](../features/model/03-sensor-model/requirements.md#eq-6-2)） |
 | n | 3 | 次 | 每电感重复测量次数 |
 
-实验步骤如下：第一步，信号源输出 20 kHz / 100 mA，接 ≥ 1 m 直导线，置于无铁磁物台面；第二步，电感垂直贴信号线（贴线几何满足式 [(6.2)](../features/03-sensor-model/requirements.md#eq-6-2)），示波器读取检波输出 Vpp；第三步，更换电感，4 个电感各测 3 次取平均。数据记录格式如表 9-4 所示。
+实验步骤如下：第一步，信号源输出 20 kHz / 100 mA，接 ≥ 1 m 直导线，置于无铁磁物台面；第二步，电感垂直贴信号线（贴线几何满足式 [(6.2)](../features/model/03-sensor-model/requirements.md#eq-6-2)），示波器读取检波输出 Vpp；第三步，更换电感，4 个电感各测 3 次取平均。数据记录格式如表 9-4 所示。
 
 **表 9-4　实验 1 数据记录表**
 
@@ -83,11 +83,11 @@
 | L2 | | | | |
 | R2 | | | | |
 
-数据处理与判据：将实测均值作为 Vpp_anchor 代入式 [(6.4)](../features/03-sensor-model/requirements.md#eq-6-4) 即得 k；均值应落在 5–7 V 区间（程序默认 6 V 仅为先验值），回填界面"标定 Vpp"后 k 自动更新；各电感间偏差超过 20% 时，应排查单链路增益一致性后再测。本实验的建模意义在于：锚点把整条采集链路的增益归并为单一系数 k——**k 是连接理论磁场（T）与实测电压（V）的唯一桥梁，是全部定量结论的基准**。
+数据处理与判据：将实测均值作为 Vpp_anchor 代入式 [(6.4)](../features/model/03-sensor-model/requirements.md#eq-6-4) 即得 k；均值应落在 5–7 V 区间（程序默认 6 V 仅为先验值），回填界面"标定 Vpp"后 k 自动更新；各电感间偏差超过 20% 时，应排查单链路增益一致性后再测。本实验的建模意义在于：锚点把整条采集链路的增益归并为单一系数 k——**k 是连接理论磁场（T）与实测电压（V）的唯一桥梁，是全部定量结论的基准**。
 
 **实验 2（线性工作区间标定）**
 
-由式 [(6.1)](../features/03-sensor-model/requirements.md#eq-6-1) 与式 [(5.5)](../features/02-magnetic-field/requirements.md#eq-5-5) 可知，读数 U 应与电流幅值 I 成正比——该线性关系是准静态假设（假设 1）的直接推论，也是模型全部定量结论的前提；但其在实车上的**实际成立范围**（检波链路是否饱和、电流上限）需由实验标定。
+由式 [(6.1)](../features/model/03-sensor-model/requirements.md#eq-6-1) 与式 [(5.5)](../features/model/02-magnetic-field/requirements.md#eq-5-5) 可知，读数 U 应与电流幅值 I 成正比——该线性关系是准静态假设（假设 1）的直接推论，也是模型全部定量结论的前提；但其在实车上的**实际成立范围**（检波链路是否饱和、电流上限）需由实验标定。
 
 实验步骤如下：第一步，固定电感于 e = 50 mm、h = 75 mm（敏感轴按默认布局）；第二步，I 自 20 mA 起每 20 mA 一档至 200 mA，逐档稳定后记录各通道 Vpp。数据记录为 CSV 文件：`I_mA, L1, R1, L2, R2`。
 
@@ -100,7 +100,7 @@ $$U_i=a_i\,I \tag{9.1}$$
 
 **实验 3（敏感轴方向标定）**
 
-式 [(6.1)](../features/03-sensor-model/requirements.md#eq-6-1) 的投影关系以敏感轴方向 **n̂** 为参数；实际敏感轴方向由电感绕制与安装工艺决定，与预设可能不符，需实验标定后写入布局。
+式 [(6.1)](../features/model/03-sensor-model/requirements.md#eq-6-1) 的投影关系以敏感轴方向 **n̂** 为参数；实际敏感轴方向由电感绕制与安装工艺决定，与预设可能不符，需实验标定后写入布局。
 
 实验步骤如下：第一步，固定电感到导线的横向距离与高度；第二步，将电感绕竖直轴自 0° 起每 15° 旋转至 180°，逐角度记录 Vpp(θ)。数据记录为表格"角度 θ (°) / Vpp (V)"。
 
@@ -115,7 +115,7 @@ $$\eta(\theta)=\frac{U(\theta)}{U(0^\circ)}\approx|\cos\theta| \tag{9.2}$$
 
 **实验 4（电机阶跃响应辨识 τ_m）**
 
-式 [(8.6)](../features/05-tracking-control/requirements.md#eq-8-6) 的电机一阶滞后模型中，时间常数 τ_m 取决于电机电磁惯性、驱动电路与负载，理论无法给出，必须由实验辨识。式 [(8.6)](../features/05-tracking-control/requirements.md#eq-8-6) 的单位阶跃响应可以表示为：
+式 [(8.6)](../features/model/05-tracking-control/requirements.md#eq-8-6) 的电机一阶滞后模型中，时间常数 τ_m 取决于电机电磁惯性、驱动电路与负载，理论无法给出，必须由实验辨识。式 [(8.6)](../features/model/05-tracking-control/requirements.md#eq-8-6) 的单位阶跃响应可以表示为：
 
 <a id="eq-9-3"></a>
 $$v_i(t)=v_\infty\left(1-e^{-t/\tau_m}\right) \tag{9.3}$$
@@ -133,7 +133,7 @@ $$\ln\left(1-\frac{v(t)}{v_\infty}\right)=-\frac{t}{\tau_m} \tag{9.4}$$
 
 **实验 5（轮距 W 与基础速度 v_base 标定）**
 
-式 [(8.8)](../features/05-tracking-control/requirements.md#eq-8-8) 的运动学中，轮距 W 由轮胎有效接触间距决定（含打滑修正），v_base 受电池电压与传动效率影响，二者均取名义先验值，需实验标定。
+式 [(8.8)](../features/model/05-tracking-control/requirements.md#eq-8-8) 的运动学中，轮距 W 由轮胎有效接触间距决定（含打滑修正），v_base 受电池电压与传动效率影响，二者均取名义先验值，需实验标定。
 
 实验步骤如下：第一步，开环直行——v_L = v_R = 1 m/s 指令行驶 5 s，卷尺量取距离，得实际 v_base；第二步，原地差速——v_L = −v_R = 0.5 m/s 转 n 整圈并计时，轮距可以计算为：
 
@@ -144,17 +144,17 @@ $$W=\frac{v_R-v_L}{\omega},\qquad \omega=\frac{2\pi n}{t} \tag{9.5}$$
 
 **实验 6（横向扫描 U(e)，主实测数据集）**
 
-实测经验模型（specs/features/04-measured-data-model）以实车扫描数据为**建模输入**——本实验即该模型的数据采集环节，是实验建模的核心。同时，扫描曲线的形状受式 [(5.5)](../features/02-magnetic-field/requirements.md#eq-5-5)（1/ρ 反比衰减）与式 [(7.2)](../features/04-measured-data-model/requirements.md#eq-7-2)（Lorentzian 形 / |d| 形）约束，可与理论同图互证。
+实测经验模型（specs/features/model/04-measured-data-model）以实车扫描数据为**建模输入**——本实验即该模型的数据采集环节，是实验建模的核心。同时，扫描曲线的形状受式 [(5.5)](../features/model/02-magnetic-field/requirements.md#eq-5-5)（1/ρ 反比衰减）与式 [(7.2)](../features/model/04-measured-data-model/requirements.md#eq-7-2)（Lorentzian 形 / |d| 形）约束，可与理论同图互证。
 
 实验步骤如下：第一步，铺设 ≥ 2 m 直道，测量段取中段（距两端 ≥ 0.5 m，避开端点效应）；第二步，电感组按实车布局刚性固定（默认：h = 75 mm、y = 80 mm 纵排），整体横向平移，e 自 −150 mm 起每 10 mm 一档至 +150 mm（共 31 点）；第三步，每点停稳后记录 4 通道 Vpp，全程保持 I = 100 mA 恒定。
 
-数据记录：整理为接口① CSV 文件——首行表头，首列 `e(mm)`，其余列 `L1, R1, L2, R2`（格式细节见 [`specs/features/04-measured-data-model/requirements.md`](../features/04-measured-data-model/requirements.md)）；导入程序右侧"实测数据标定"区，即完成经验模型的数据建模。
+数据记录：整理为接口① CSV 文件——首行表头，首列 `e(mm)`，其余列 `L1, R1, L2, R2`（格式细节见 [`specs/features/model/04-measured-data-model/requirements.md`](../features/model/04-measured-data-model/requirements.md)）；导入程序右侧"实测数据标定"区，即完成经验模型的数据建模。
 
-数据质量判据：方案A 拟合 R² > 0.95（式 [(7.4)](../features/04-measured-data-model/requirements.md#eq-7-4)）；h_eff 回收值接近实际安装高度且落在 [15, 200] mm；方案B 偏差 |δ| 峰值小于读数峰值的 20%；实验散点与同参数仿真全程扫描曲线**同图对比**，峰值位置与两翼衰减形态一致。数据不达标时重采——本数据集的质量直接决定经验模型的可信度，也是细线/尖角/点探头假设（假设 2/3/4）在实车几何下适用性的综合体现。
+数据质量判据：方案A 拟合 R² > 0.95（式 [(7.4)](../features/model/04-measured-data-model/requirements.md#eq-7-4)）；h_eff 回收值接近实际安装高度且落在 [15, 200] mm；方案B 偏差 |δ| 峰值小于读数峰值的 20%；实验散点与同参数仿真全程扫描曲线**同图对比**，峰值位置与两翼衰减形态一致。数据不达标时重采——本数据集的质量直接决定经验模型的可信度，也是细线/尖角/点探头假设（假设 2/3/4）在实车几何下适用性的综合体现。
 
 **实验 7（高度扫描 U(h)，等效高度 h_eff 的物理标定，可选）**
 
-式 [(7.2)](../features/04-measured-data-model/requirements.md#eq-7-2) 中的等效高度 h_eff 含安装残差，其物理含义需高度扫描实验标定佐证。
+式 [(7.2)](../features/model/04-measured-data-model/requirements.md#eq-7-2) 中的等效高度 h_eff 含安装残差，其物理含义需高度扫描实验标定佐证。
 
 实验步骤如下：第一步，固定 e = 0 与 ±50 mm 三个横向位置；第二步，h 自 30 mm 起每 10 mm 一档至 120 mm，逐档记录 Vpp(h)。数据记录为表格"h (mm) / 各电感 Vpp (V)"，按 e 分表。
 
@@ -166,7 +166,7 @@ $$W=\frac{v_R-v_L}{\omega},\qquad \omega=\frac{2\pi n}{t} \tag{9.5}$$
 
 **实验 8（直道收敛偏差分析）**
 
-为量化闭环控制律（式 [(8.2)](../features/05-tracking-control/requirements.md#eq-8-2)）与运动学（式 [(8.9)](../features/05-tracking-control/requirements.md#eq-8-9)）在实车上的响应相对仿真的偏差，设计直道收敛对照实验。
+为量化闭环控制律（式 [(8.2)](../features/model/05-tracking-control/requirements.md#eq-8-2)）与运动学（式 [(8.9)](../features/model/05-tracking-control/requirements.md#eq-8-9)）在实车上的响应相对仿真的偏差，设计直道收敛对照实验。
 
 实验步骤如下：第一步，铺设 ≥ 4 m 直道，将程序当前 Kp/Kd/τ_m 等参数烧入实车；第二步，以初始扰动 e₀ = ±50 / ±100 mm、ψ₀ = 0 放入赛道，每种扰动各跑 3 次；第三步，记录收敛时间与超调量（日志或落点标记观测）。数据记录为表格"e₀ (mm) / 收敛时间 (s) / 超调 (mm) / 次数"。
 
@@ -176,13 +176,13 @@ $$W=\frac{v_R-v_L}{\omega},\qquad \omega=\frac{2\pi n}{t} \tag{9.5}$$
 
 为界定闭环信号流全链路模型的适用范围，设计全程循迹偏差分析实验。
 
-实验步骤如下：第一步，实车跑标准闭环赛道一整圈，车载每 5 ms 记录一帧：t、各电感读数（换算 Vpp）、v_L、v_R、Err；第二步，导出为接口④ CSV 文件（与仿真循迹轨迹 CSV 同构；x/y/θ 缺省时由轮速按式 [(8.9)](../features/05-tracking-control/requirements.md#eq-8-9) 离线积分重建）。
+实验步骤如下：第一步，实车跑标准闭环赛道一整圈，车载每 5 ms 记录一帧：t、各电感读数（换算 Vpp）、v_L、v_R、Err；第二步，导出为接口④ CSV 文件（与仿真循迹轨迹 CSV 同构；x/y/θ 缺省时由轮速按式 [(8.9)](../features/model/05-tracking-control/requirements.md#eq-8-9) 离线积分重建）。
 
-数据处理与判据：与程序导出的循迹轨迹 CSV 按弧长对齐，将 Err(t)、轮速 v_L/v_R(t)、各电感 U(t) 的**实验曲线与仿真曲线同图对比**——Err 过零点（弯道入口）与各电感峰值位置逐弯对应；轮速限幅区间一致；曲线量级偏差 < 30% 的工况区间即**模型适用范围**（建模产出）；系统性偏差（如弯道读数持续偏低）可整理后补充方案B 的偏差项 δ（式 [(7.6)](../features/04-measured-data-model/requirements.md#eq-7-6)），实现模型修正。
+数据处理与判据：与程序导出的循迹轨迹 CSV 按弧长对齐，将 Err(t)、轮速 v_L/v_R(t)、各电感 U(t) 的**实验曲线与仿真曲线同图对比**——Err 过零点（弯道入口）与各电感峰值位置逐弯对应；轮速限幅区间一致；曲线量级偏差 < 30% 的工况区间即**模型适用范围**（建模产出）；系统性偏差（如弯道读数持续偏低）可整理后补充方案B 的偏差项 δ（式 [(7.6)](../features/model/04-measured-data-model/requirements.md#eq-7-6)），实现模型修正。
 
 ### 5. 数据整理与处理约定
 
-各实验数据按 specs/features/07-persistence-export 的接口约定整理与处理：实验 6 产出的接口① CSV 直接导入程序"实测数据标定"区（✅ 已实现）；实验 1/2/3/4/5/7/8 的数据按接口③模板整理为 CSV 后**线下汇总处理**（拟合 τ_m、线性度、回收 k、标定 W 与 v_base），结论回填程序对应参数；实验 9 的接口④ CSV 与仿真导出文件逐列对照。再次强调：本手册为个人实验手册，除已实现的接口①②外，**不需要任何程序改动**。
+各实验数据按 specs/features/ui/07-persistence-export 的接口约定整理与处理：实验 6 产出的接口① CSV 直接导入程序"实测数据标定"区（✅ 已实现）；实验 1/2/3/4/5/7/8 的数据按接口③模板整理为 CSV 后**线下汇总处理**（拟合 τ_m、线性度、回收 k、标定 W 与 v_base），结论回填程序对应参数；实验 9 的接口④ CSV 与仿真导出文件逐列对照。再次强调：本手册为个人实验手册，除已实现的接口①②外，**不需要任何程序改动**。
 
 ## 原始决策记录
 

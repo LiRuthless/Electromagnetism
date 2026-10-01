@@ -45,6 +45,8 @@
 │   │       ├── plan.md                # 实现计划：任务分组与顺序
 │   │       ├── requirements.md        # 需求：功能做什么、技术约束
 │   │       └── validation.md          # 验证：如何判断做对了
+│   │       # 可选：功能数量增多后可加一层域目录 features/<domain>/NN-<name>/，
+│   │       # 按维护归属分组（如 model/ ui/）；NN 序号规则不变，见 2.1
 │   └── research/
 │       └── YYYY-MM-DD-<topic>.md      # 调研记录：未排期的想法
 └── ... (代码目录)
@@ -53,6 +55,7 @@
 ### 2.1 命名规则
 
 - 功能目录：`NN-<kebab-case-name>`，例如 `01-hello-hono`、`02-motor-driver`。序号 `NN` 与 `roadmap.md` 中的阶段编号对应。
+- 可选域分组：功能数量增多后，可在 `features/` 下加一层域目录按维护归属分组（如 `features/model/01-xxx`、`features/ui/06-yyy`）。域只是分组视图——`NN` 仍与 roadmap 阶段编号一一对应，**调整分组不改号**（NN 是身份键，被 CHANGELOG / 分支名 / 交叉引用持有）；分组变更须同步修复所有相对链接，并在 roadmap 记录。
 - 调研文件：`YYYY-MM-DD-<topic>.md`，例如 `2025-01-15-database-selection.md`。
 - 所有文件名使用小写英文 + 连字符，避免中文和空格（防止跨平台与工具链问题）。
 

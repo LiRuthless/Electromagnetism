@@ -63,7 +63,7 @@ MATLAB 侧：`matlab-simulink/` 下 `build_all`（一键建模）、`runAll`（�
 3. **appState schema 纪律**：结构变更须 `APP_STATE_VERSION +1`；新增字段优先逐字段回退默认值（如 motorTauMs 未升版本的先例）；启动校验失败回退全默认，**绝不崩溃**。
 4. **两阶段发布**：改完代码只出预览版（build/dev），用户明确同意后才打 exe。
 5. **表达式解析禁用 `eval`**：误差公式走递归下降解析（`compileFormula()`）。
-6. **控制器 ABI 稳定**：WASM 车载控制器的宿主导入函数表与任务入口约定（`specs/features/13-wasm-controller/`）一旦发布，变更必须升 ABI 版本，并同步 `em-field-studio/controller-template/` 与自检 fixture；旧 ABI 的 wasm 仍可加载或明确报版本错误，**绝不静默误跑**。
+6. **控制器 ABI 稳定**：WASM 车载控制器的宿主导入函数表与任务入口约定（`specs/features/model/13-wasm-controller/`）一旦发布，变更必须升 ABI 版本，并同步 `em-field-studio/controller-template/` 与自检 fixture；旧 ABI 的 wasm 仍可加载或明确报版本错误，**绝不静默误跑**。
 7. **Electron 安全**：`contextIsolation` 开、`nodeIntegration` 关，单窗口加载 `dist/index.html`。
 8. **Git 约定**：改动处理完毕后 `git add -A && git commit` 一次（message 前缀 `docs:` / `model:` / `feat:` / `fix:` / `chore:` + 中文要点）；**默认只 commit 不 push**；规约与代码同仓库同流程，宪章修改走独立分支。
 
@@ -80,19 +80,19 @@ MATLAB 侧：`matlab-simulink/` 下 `build_all`（一键建模）、`runAll`（�
 
 | 文件（`em-field-studio/src/`） | 职责 | 对应规约 |
 |---|---|---|
-| `mathmodel/track.ts` | 赛道几何：段序列（line/arc）→ 离散电流元 / 路径采样 / 形状工具 / 转角刻度 / 最近点查询 | `01-track-geometry/`（式 4.x） |
-| `mathmodel/field.ts` | 磁场计算：毕奥-萨伐尔积分 + 直线段闭式解 + 网格批算 | `02-magnetic-field/`（式 5.x） |
-| `mathmodel/sensor.ts` | 电感模型：布局、敏感轴、标定 k、车体坐标变换 | `03-sensor-model/`（式 6.x） |
-| `mathmodel/sweep.ts` | 全程扫描：固定 e/ψ 沿赛道扫全程得 U(s) | `03-sensor-model/` |
-| `mathmodel/measured.ts` | 实测数据模型：CSV 导入 + 方案A 拟合 + 方案B 物理偏差校正 | `04-measured-data-model/`（式 7.x） |
-| `mathmodel/control.ts` | 误差公式（递归下降解析无 eval）+ PD + 差速轮速分配 + 电机一阶滞后 | `05-tracking-control/`（式 [8.1](features/05-tracking-control/requirements.md#eq-8-1)–[8.7](features/05-tracking-control/requirements.md#eq-8-7)） |
-| `mathmodel/kinematics.ts` | 两轮差速运动学（`stepCar`/`carFrame`）+ `simulateTracking()` 兼容薄壳（转调 Simulator.runToEnd） | `05-tracking-control/`（式 [8.8](features/05-tracking-control/requirements.md#eq-8-8)–[8.11](features/05-tracking-control/requirements.md#eq-8-11)）/ `12` |
-| `mathmodel/sim/controller.ts` | `CarController` 接口 + 内置 `FormulaController`（公式+PD 包装）+ `ControllerHost` | `12-simulator-architecture/` / `13` |
-| `mathmodel/sim/scheduler.ts` | 多速率周期任务调度器（整数 µs 时间轴、过期合并、零阶保持） | `12-simulator-architecture/` |
-| `mathmodel/sim/vehicle.ts` | 虚拟整车：读数采样器（收敛仿真/实测回退策略）+ 位姿/轮速状态 + motorLag + stepCar | `12-simulator-architecture/` |
-| `mathmodel/sim/simulator.ts` | Simulator 门面：`reset` / `step`（实时）/ `runToEnd`（快进） | `12-simulator-architecture/` |
-| `mathmodel/sim/autotune.ts` | 一键调 PID 网格搜索（生成器接口）+ `buildSegSpans` | `12-simulator-architecture/`（式 [8.11](features/05-tracking-control/requirements.md#eq-8-11)） |
-| `mathmodel/sim/controllerAbi.ts` / `wasmController.ts` | 控制器 ABI v1（env 导入表/任务入口/式 [13.1](features/13-wasm-controller/requirements.md#eq-13-1) 映射）+ WASM 控制器宿主（探测/trap 回退） | `13-wasm-controller/` |
+| `mathmodel/track.ts` | 赛道几何：段序列（line/arc）→ 离散电流元 / 路径采样 / 形状工具 / 转角刻度 / 最近点查询 | `model/01-track-geometry/`（式 4.x） |
+| `mathmodel/field.ts` | 磁场计算：毕奥-萨伐尔积分 + 直线段闭式解 + 网格批算 | `model/02-magnetic-field/`（式 5.x） |
+| `mathmodel/sensor.ts` | 电感模型：布局、敏感轴、标定 k、车体坐标变换 | `model/03-sensor-model/`（式 6.x） |
+| `mathmodel/sweep.ts` | 全程扫描：固定 e/ψ 沿赛道扫全程得 U(s) | `model/03-sensor-model/` |
+| `mathmodel/measured.ts` | 实测数据模型：CSV 导入 + 方案A 拟合 + 方案B 物理偏差校正 | `model/04-measured-data-model/`（式 7.x） |
+| `mathmodel/control.ts` | 误差公式（递归下降解析无 eval）+ PD + 差速轮速分配 + 电机一阶滞后 | `model/05-tracking-control/`（式 [8.1](features/model/05-tracking-control/requirements.md#eq-8-1)–[8.7](features/model/05-tracking-control/requirements.md#eq-8-7)） |
+| `mathmodel/kinematics.ts` | 两轮差速运动学（`stepCar`/`carFrame`）+ `simulateTracking()` 兼容薄壳（转调 Simulator.runToEnd） | `model/05-tracking-control/`（式 [8.8](features/model/05-tracking-control/requirements.md#eq-8-8)–[8.11](features/model/05-tracking-control/requirements.md#eq-8-11)）/ `12` |
+| `mathmodel/sim/controller.ts` | `CarController` 接口 + 内置 `FormulaController`（公式+PD 包装）+ `ControllerHost` | `model/12-simulator-architecture/` / `13` |
+| `mathmodel/sim/scheduler.ts` | 多速率周期任务调度器（整数 µs 时间轴、过期合并、零阶保持） | `model/12-simulator-architecture/` |
+| `mathmodel/sim/vehicle.ts` | 虚拟整车：读数采样器（收敛仿真/实测回退策略）+ 位姿/轮速状态 + motorLag + stepCar | `model/12-simulator-architecture/` |
+| `mathmodel/sim/simulator.ts` | Simulator 门面：`reset` / `step`（实时）/ `runToEnd`（快进） | `model/12-simulator-architecture/` |
+| `mathmodel/sim/autotune.ts` | 一键调 PID 网格搜索（生成器接口）+ `buildSegSpans` | `model/12-simulator-architecture/`（式 [8.11](features/model/05-tracking-control/requirements.md#eq-8-11)） |
+| `mathmodel/sim/controllerAbi.ts` / `wasmController.ts` | 控制器 ABI v1（env 导入表/任务入口/式 [13.1](features/model/13-wasm-controller/requirements.md#eq-13-1) 映射）+ WASM 控制器宿主（探测/trap 回退） | `model/13-wasm-controller/` |
 | `components/TrackEditor.tsx` | 左侧面板：铺设工具、赛道库、物理参数 | `01` / `06` |
 | `components/FieldCanvas.tsx` | 中央画布：热力图/等值线/车体叠加/铺设交互/循迹轨迹/转角刻度 | `06` |
 | `components/SensorPanel.tsx` | 右侧面板：数据源、实测标定、位姿、读数剖面、全程扫描、布局编辑 | `03` / `04` / `06` |

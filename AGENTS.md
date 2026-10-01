@@ -10,7 +10,8 @@
 
 ## 工作规则
 
-- 实现代码前必须存在对应的功能规约（`specs/features/NN-*/` 的 plan / requirements / validation 三件套）；先写并提交规约，再实现。
+- 实现代码前必须存在对应的功能规约（`specs/features/<域>/NN-*/` 的 plan / requirements / validation 三件套）；先写并提交规约，再实现。
+- **两层组织结构**：文档与代码均按两层维护——模型层（可脱离浏览器运行 / 与实车共享：数学模型、仿真器、车载控制器代码）与前端层（可视化 / UI / 桌面壳与持久化等基建）。新增功能先判定归属层，规约建到 `specs/features/model/` 或 `specs/features/ui/` 下；`NN` 序号仍与 roadmap 阶段编号对应，跨域不改号。
 - 修改任何规约文档必须同步更新关联文档（plan / requirements / validation / roadmap / CHANGELOG），防止漂移。
 - 每个任务分组完成后运行对应 validation.md 中的自动化验证（三组自检 + `npm run build`，见 `specs/techstack.md`）。
 - 状态标记约定：✅ 已实现｜🔶 设计变更（待改代码）｜⬜ 新增设计（待实现）｜🧪 待实操（实验建模环节）。
@@ -19,7 +20,7 @@
 ## 历史资料与编号对应关系
 
 - 原设计基准双文档已归档：`archive/docs/legacy/数学模型.md`、`archive/docs/legacy/程序设计说明.md`（2026-09-30 起不再维护，仅供查证）。
-- **代码注释中的"《数学模型.md》§x / 式 (x.y)"编号依然有效**：迁移后的各 feature 规约原样保留了式编号；归档版全文可作对照。新旧对照：§4→`01-track-geometry`，§5→`02-magnetic-field`，§6→`03-sensor-model`，§7→`04-measured-data-model`，§8→`05-tracking-control`，§9→`specs/research/2026-08-13-experiment-modeling.md`，§10→各 feature 的 validation.md。
+- **代码注释中的"《数学模型.md》§x / 式 (x.y)"编号依然有效**：迁移后的各 feature 规约原样保留了式编号；归档版全文可作对照。新旧对照：§4→`model/01-track-geometry`，§5→`model/02-magnetic-field`，§6→`model/03-sensor-model`，§7→`model/04-measured-data-model`，§8→`model/05-tracking-control`，§9→`specs/research/2026-08-13-experiment-modeling.md`，§10→各 feature 的 validation.md。
 - 打包 exe 的本机离线流程见 `em-field-studio/BUILD-EXE.md`；**打 exe 必须经用户明确同意**（两阶段发布）。
 
 ## Git 约定
