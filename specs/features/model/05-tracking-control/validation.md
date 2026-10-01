@@ -1,6 +1,6 @@
 # Phase 5: 循迹闭环控制 — 验证
 
-> 判据与 `em-field-studio/scripts/selfcheck-tracking.ts` 一致（脚本内编号 [1]–[7]）；V-n 编号按下表对应脚本编号。
+> 判据与 `em-field-studio/scripts/model/selfcheck-tracking.ts` 一致（脚本内编号 [1]–[7]）；V-n 编号按下表对应脚本编号。
 
 ## 验证清单（Scorecard）
 
@@ -22,7 +22,7 @@
 |---|---|
 | `npm run selfcheck:tracking` | 上述 V-1 ~ V-7 全部 PASS，进程退出码 0（末行输出"循迹闭环自检全部通过 ✓"） |
 | `npm run build` | 类型检查 + 构建通过 |
-| `npm run selfcheck`、`npm run selfcheck:measured` | 另两组自检同步全过（改 `src/mathmodel/` 任何公式/默认值后的硬性要求） |
+| `npm run selfcheck`、`npm run selfcheck:measured` | 另两组自检同步全过（改 `src/model/` 任何公式/默认值后的硬性要求） |
 
 ## 人工验证步骤
 
@@ -38,7 +38,7 @@
 
 - **朝向约定**：`poseFrame` 的 ψ 符号约定（式 [(6.9)](../03-sensor-model/requirements.md#eq-6-9)，ψ = 切向角 − θ）不得再写反——V-7 专防；车框显示、位姿反算、TrackingSensorChart 取数共用该约定。
 - **τ_m = 0 退化**：必须严格等价于 2026-08-12 前旧行为（轮速瞬时跟随指令），V-3 首项防护。
-- **既有自检不破坏**：本功能改动后 `npm run selfcheck`（物理）与 `npm run selfcheck:measured`（实测模型）仍须全过；`scripts/test-appstate.ts`（含 v6 `trackingRanges` 字段）通过。
+- **既有自检不破坏**：本功能改动后 `npm run selfcheck`（物理）与 `npm run selfcheck:measured`（实测模型）仍须全过；`scripts/ui/test-appstate.ts`（含 v6 `trackingRanges` 字段）通过。
 - **appState 兼容**：旧 v6 存档（无 motorTauMs）加载后循迹参数逐字段回退默认值，不崩溃、不丢其他状态（[`specs/techstack.md`](../../../techstack.md) 硬性约束 3）。
 - **终止判据语义**：闭环赛道仅一圈（不加 0.5m 容差）、非闭环总长 + 0.5m——V-6 防护；闭环吸合段几何属 `specs/features/model/01-track-geometry/`，其规约变更须同步复核 V-6。
 - **读数来源注入**：`simulateTracking()` 不直接依赖场计算/实测模型实现，只经 `readSensor` 回调——切数据源（仿真 / 方案A / 方案B）后循迹读数与单点读数一致（通道无数据回退仿真并带 `*` 标注，见 `specs/features/model/04-measured-data-model/`）。

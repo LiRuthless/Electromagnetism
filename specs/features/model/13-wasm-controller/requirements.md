@@ -103,7 +103,7 @@ appState 只记录来源文件名（重启提示用），**不持久化 wasm 字
 ## 技术约束
 
 - **TC-1**：env 导入全部 SI 单位（V、rad/s、m/s²、m/s、ms），唯 `set_motor_pwm` 归一化 −1..1 例外（[`specs/techstack.md`](../../../techstack.md) 硬性约束 1；例外已在 FR-6 显式声明并限定范围）。
-- **TC-2**：宿主实现（`src/mathmodel/sim/controllerAbi.ts`、`wasmController.ts`）为纯计算层，禁止 UI / React / DOM 依赖；`WebAssembly` API 在浏览器与 Node/tsx 均全局可用，脚本可直跑（[`specs/techstack.md`](../../../techstack.md) 硬性约束 2）。
+- **TC-2**：宿主实现（`src/model/sim/controllerAbi.ts`、`wasmController.ts`）为纯计算层，禁止 UI / React / DOM 依赖；`WebAssembly` API 在浏览器与 Node/tsx 均全局可用，脚本可直跑（[`specs/techstack.md`](../../../techstack.md) 硬性约束 2）。
 - **TC-3**：appState 纪律——只记文件名、逐字段回退、不升 `APP_STATE_VERSION`（FR-11；硬性约束 3）。
 - **TC-4**：控制器 ABI 稳定——`CTRL_ABI_VERSION = 1` 发布后变更必须升版本，并同步 `controller-template/` 与自检 fixture；旧 ABI 的 wasm 仍可加载或明确报版本错误，绝不静默误跑（硬性约束 6，本 feature 为其落地载体）。
 - **TC-5**：Electron 安全——`contextIsolation` 开、`nodeIntegration` 关（`electron/main.cjs` 现状），wasm 加载只能在渲染进程用浏览器全局 `WebAssembly` API，不引入 Node 能力、不引第三方 wasm 运行时（硬性约束 7）。
@@ -115,14 +115,14 @@ appState 只记录来源文件名（重启提示用），**不持久化 wasm 字
 
 | 文件 | 内容 |
 |---|---|
-| `src/mathmodel/sim/controllerAbi.ts` | `CTRL_ABI_VERSION = 1`、env 导入函数表类型与默认值、任务入口名表、式 [(13.1)](#eq-13-1) 映射 `pwmToWheelCmd()` |
-| `src/mathmodel/sim/wasmController.ts` | `WasmController`（实现 Phase 12 `CarController{init/step/reset}`）：instantiate、入口探测、env 闭包绑定 Vehicle 采样器、trap 捕获与回退 |
-| `src/mathmodel/sim/`（Phase 12 既有） | `CarController` 接口、内置 `FormulaController`、多速率调度器——见 [`../12-simulator-architecture/`](../12-simulator-architecture/) |
-| `src/components/TrackingPanel.tsx` | 控制器来源区（上传 / 来源显示 / 回退提示） |
-| `src/utils/appState.ts` | `wasmController.fileName` 字段持久化与逐字段回退（v6 内，不升版本） |
+| `src/model/sim/controllerAbi.ts` | `CTRL_ABI_VERSION = 1`、env 导入函数表类型与默认值、任务入口名表、式 [(13.1)](#eq-13-1) 映射 `pwmToWheelCmd()` |
+| `src/model/sim/wasmController.ts` | `WasmController`（实现 Phase 12 `CarController{init/step/reset}`）：instantiate、入口探测、env 闭包绑定 Vehicle 采样器、trap 捕获与回退 |
+| `src/model/sim/`（Phase 12 既有） | `CarController` 接口、内置 `FormulaController`、多速率调度器——见 [`../12-simulator-architecture/`](../12-simulator-architecture/) |
+| `src/ui/components/TrackingPanel.tsx` | 控制器来源区（上传 / 来源显示 / 回退提示） |
+| `src/ui/utils/appState.ts` | `wasmController.fileName` 字段持久化与逐字段回退（v6 内，不升版本） |
 | `em-field-studio/controller-template/` | `controller_api.h` / `controller.c` / `build.bat` |
-| `em-field-studio/scripts/selfcheck-wasm.ts` | ABI 自检（tsx 直跑，npm script `selfcheck:wasm`） |
-| `em-field-studio/scripts/fixtures/pd_controller.wasm` | fixture：模板 PD 示例编译产物（用户本机跑 `build.bat` 生成后提交入库） |
+| `em-field-studio/scripts/model/selfcheck-wasm.ts` | ABI 自检（tsx 直跑，npm script `selfcheck:wasm`） |
+| `em-field-studio/scripts/model/fixtures/pd_controller.wasm` | fixture：模板 PD 示例编译产物（用户本机跑 `build.bat` 生成后提交入库） |
 
 ### wasm 导出 / 导入速查
 

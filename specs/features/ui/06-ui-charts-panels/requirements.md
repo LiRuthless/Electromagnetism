@@ -15,7 +15,7 @@
 - **FR-4 悬停探针** ✅：显示该点 Bx/By/Bz/|B|；悬停在赛道线 <10 mm 时提示真实线径（0.5 mm）。
 - **FR-5 视图交互** ✅：滚轮缩放（zoom to cursor）、中键或空格+拖拽平移；视图状态（缩放/平移）参与持久化（`specs/features/ui/07-persistence-export/`）。
 - **FR-6 循迹叠加** ✅：绘制小车轨迹线（一圈，闭环赛道时仅一圈）、当前位姿车框、电感位置、冲线点/失控点标记；车框朝向约定见 [`specs/features/model/03-sensor-model/requirements.md`](../../model/03-sensor-model/requirements.md)（ψ 符号约定）。
-- **FR-7 转角刻度叠加** ✅：几何约定（转角判定、300 mm 标尺与截断规则）见 [`specs/features/model/01-track-geometry/requirements.md`](../../model/01-track-geometry/requirements.md)。画布右下角"转角刻度"开关独立控制（默认开，会话内状态，不参与持久化）；刻度随视图缩放平移联动，不遮挡段长标注；由 `mathmodel/track.ts cornerRulers()` 计算顶点与两侧切向/段长截断，`FieldCanvas.tsx` 叠加层绘制。
+- **FR-7 转角刻度叠加** ✅：几何约定（转角判定、300 mm 标尺与截断规则）见 [`specs/features/model/01-track-geometry/requirements.md`](../../model/01-track-geometry/requirements.md)。画布右下角"转角刻度"开关独立控制（默认开，会话内状态，不参与持久化）；刻度随视图缩放平移联动，不遮挡段长标注；由 `model/track.ts cornerRulers()` 计算顶点与两侧切向/段长截断，`FieldCanvas.tsx` 叠加层绘制。
 - 画布侧还呈现自由铺设交互（笔尖显示、圆弧虚影、CAD 动态输入框）；铺设语义与几何构造属 `specs/features/model/01-track-geometry/`。
 
 ### 面板体系
@@ -63,10 +63,10 @@
 ## 技术约束
 
 - **TC-1 技术选型**：折线图（读数剖面/全程扫描/循迹轨迹电感值/Err(t)/轮速(t)）为纯 SVG 自绘；recharts 2.15.4 仅用于实测标定对比预览图；面板调宽用 react-resizable-panels 4.2.2；图标 lucide-react。版本锁定见 [`specs/techstack.md`](../../../techstack.md)。
-- **TC-2 分层纪律**：本功能全部代码属交互层（`src/components/`、`src/pages/Home.tsx`），禁止向 `src/mathmodel/` 纯计算层引入 UI/React/DOM 依赖（[`specs/techstack.md`](../../../techstack.md) 硬性约束 2）。
+- **TC-2 分层纪律**：本功能全部代码属交互层（`src/ui/components/`、`src/ui/pages/Home.tsx`），禁止向 `src/model/` 纯计算层引入 UI/React/DOM 依赖（[`specs/techstack.md`](../../../techstack.md) 硬性约束 2）。
 - **TC-3 持久化纪律**：`floatingCharts`、`leftCollapsed` 走 appState（schema 版本纪律见 [`specs/techstack.md`](../../../techstack.md) 硬性约束 3，当前 v6）；面板宽度布局走独立 key `em-field-studio/panel-layout`（无版本号，损坏只回退默认宽度）；分区折叠、右侧栏收起、转角刻度开关为会话内状态，不持久化。
 - **TC-4 显示单位**：内部计算 SI 单位，界面显示 mm / Vpp（[`specs/techstack.md`](../../../techstack.md) 硬性约束 1）。
-- **TC-5 验证门槛**：本功能改动须 `npm run build` 通过 + `scripts/screenshot.cjs` 四场景截图目检无溢出（见 [`validation.md`](validation.md)）；不得破坏三组物理自检（回归）。
+- **TC-5 验证门槛**：本功能改动须 `npm run build` 通过 + `scripts/ui/screenshot.cjs` 四场景截图目检无溢出（见 [`validation.md`](validation.md)）；不得破坏三组物理自检（回归）。
 - **TC-6 交互共存**：缩放（框选/平移）、浮动（标题栏拖拽）、点击联动三类指针交互在同一图表上共存，须以位移阈值与修饰键区分，不得互相阻塞。
 
 ## 接口约定
@@ -75,15 +75,15 @@
 
 | 文件 | 内容 |
 |---|---|
-| `src/components/ZoomableChart.tsx` | `useChartZoom()` + `ZoomResetButton` + `ZOOM_HINT`（折线图统一缩放封装） |
-| `src/components/FloatingChart.tsx` | `FloatingChart` 容器、`FloatingLayerContext`、`FloatingLayerHost`、`useFloatingZOrder`、`FLOAT_MIN_W`/`FLOAT_MIN_H` |
-| `src/components/PanelSection.tsx` | 可折叠分区卡片（`title` / `hint` / `actions` / `defaultOpen`） |
-| `src/components/ui/mini-num.tsx` | `MiniNum` 共享数字小输入（失焦/Enter 提交；键入过程不回写） |
-| `src/components/ui/select.tsx` | Select 根因修复：`*:data-[slot=select-value]:min-w-0 / flex-1 / truncate`，箭头 `shrink-0` |
-| `src/components/FieldCanvas.tsx` | 中央画布（热力图/等值线/叠加/探针/缩放平移/转角刻度叠加层） |
-| `src/components/SensorPanel.tsx` | 右侧面板（8 模块顺序、`trackingSlot`、全程扫描区双图 hidden 切换） |
-| `src/pages/Home.tsx` | 三栏 `ResizablePanelGroup` 布局、浮动层宿主、点击联动统一处理、panel-layout 持久化、顶栏 |
-| `scripts/screenshot.cjs` | UI 离屏截图目检工具（规格本体见 `specs/features/ui/08-packaging-release/`） |
+| `src/ui/components/ZoomableChart.tsx` | `useChartZoom()` + `ZoomResetButton` + `ZOOM_HINT`（折线图统一缩放封装） |
+| `src/ui/components/FloatingChart.tsx` | `FloatingChart` 容器、`FloatingLayerContext`、`FloatingLayerHost`、`useFloatingZOrder`、`FLOAT_MIN_W`/`FLOAT_MIN_H` |
+| `src/ui/components/PanelSection.tsx` | 可折叠分区卡片（`title` / `hint` / `actions` / `defaultOpen`） |
+| `src/ui/components/ui/mini-num.tsx` | `MiniNum` 共享数字小输入（失焦/Enter 提交；键入过程不回写） |
+| `src/ui/components/ui/select.tsx` | Select 根因修复：`*:data-[slot=select-value]:min-w-0 / flex-1 / truncate`，箭头 `shrink-0` |
+| `src/ui/components/FieldCanvas.tsx` | 中央画布（热力图/等值线/叠加/探针/缩放平移/转角刻度叠加层） |
+| `src/ui/components/SensorPanel.tsx` | 右侧面板（8 模块顺序、`trackingSlot`、全程扫描区双图 hidden 切换） |
+| `src/ui/pages/Home.tsx` | 三栏 `ResizablePanelGroup` 布局、浮动层宿主、点击联动统一处理、panel-layout 持久化、顶栏 |
+| `scripts/ui/screenshot.cjs` | UI 离屏截图目检工具（规格本体见 `specs/features/ui/08-packaging-release/`） |
 
 ### 图表 id 表（浮动化/持久化 key）
 
@@ -139,7 +139,7 @@
 ### screenshot.cjs 调用约定
 
 ```
-node_modules/.bin/electron.cmd scripts/screenshot.cjs <out.png> [宽] [高] [default|measured|none|种子.json] [scroll|collapse]
+node_modules/.bin/electron.cmd scripts/ui/screenshot.cjs <out.png> [宽] [高] [default|measured|none|种子.json] [scroll|collapse]
 ```
 
 Electron 离屏窗口加载 dist 构建产物；变体 `default`（演示矩形闭环赛道 + 循迹开启）/ `measured`（数据源切最长选项"实测物理+偏差 · 方案B"）/ `none` / 自定义 app-state 种子 JSON；第 6 参 `scroll` 面板滚底、`collapse` 双栏收起；每次运行独立 userData 互不污染；截图前固定延时等待场计算完成。依赖 `dist/` 已构建。

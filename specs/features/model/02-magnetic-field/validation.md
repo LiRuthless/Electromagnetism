@@ -12,7 +12,7 @@
 | V-4 | 有限线径恒等（selfcheck [7]，假设 2） | `npm run selfcheck` | d = 0.5 mm 圆截面导线外部场与同轴细线电流严格相同（安培环路定理，差异恒等于 0；r = 2 cm ≫ 线半径） | FR-1（假设 2） |
 | V-5 | 8 m 直道逐电感审计（selfcheck [8]） | `npm run selfcheck` | 有限长导线解析解 vs 引擎逐电感对比（Tesla 域）：各电感误差 < 1%；By 无纵向串扰（≈ 0）；e = 0 时 L1/R1、L2/R2 对称（< 0.1%）；宽对读数符合解析值（< 1%）；主对（感 By）直道上读数恒 0 | FR-2, FR-3 |
 | V-6 | 直角区域闭式解机器精度（selfcheck [9]） | `npm run selfcheck` | L 形场模型 = 2 条闭式直线段 + 0 离散元；尖角顶点周围 24 点最大相对误差 < 1e-9（式 [(5.2)](requirements.md#eq-5-2) 闭式路径达双精度机器量级 ~10⁻¹⁴）；角平分线镜像对称 < 1e-9；臂中段 vs 无限长解析解 < 5%（有限长端部修正 + 另一臂贡献） | FR-3, FR-4 |
-| V-7 | Worker 协议（scripts/test-worker） | `npx tsx scripts/test-worker.ts` | 场景 A：进度消息 ≥ 3 条且严格单调递增，最终结果到达，与主线程 `computeGrid` 抽样一致（maxDiff < 1e-12）；场景 B：连续双请求时旧请求被协作式中止（无 result）、新请求完成（有 result） | FR-8, TC-4 |
+| V-7 | Worker 协议（scripts/model/test-worker） | `npx tsx scripts/model/test-worker.ts` | 场景 A：进度消息 ≥ 3 条且严格单调递增，最终结果到达，与主线程 `computeGrid` 抽样一致（maxDiff < 1e-12）；场景 B：连续双请求时旧请求被协作式中止（无 result）、新请求完成（有 result） | FR-8, TC-4 |
 | V-8 | 网格上限降档 | 人工操作（见人工验证步骤 3） | 网格单元数超 160k 时自动降档到 5 mm 整数档，"计算状态"提示实际生效步长；不超上限时按所选步长（5/10/20 mm）出图 | FR-7, TC-3 |
 | V-9 | 看门狗与主线程兜底 | 代码审查 + 人工操作（见人工验证步骤 4） | Worker 10 s 无进展 / 报错 / Worker API 不可用时自动降级主线程同步计算，场必出图，状态置 `fallback` 并 console.warn 留痕 | FR-9, TC-4 |
 
@@ -25,10 +25,10 @@
 | 命令 | 判据 |
 |---|---|
 | `npm run selfcheck` | 场相关项 [1][2][5][7][8][9] 全部 PASS（对应 V-1～V-6；完整 70 项含其他 feature 的项，应全过） |
-| `npx tsx scripts/test-worker.ts` | 场景 A/B 全部 PASS（对应 V-7） |
+| `npx tsx scripts/model/test-worker.ts` | 场景 A/B 全部 PASS（对应 V-7） |
 | `npm run build` | 类型检查 + 构建通过 |
 
-改 `src/mathmodel/field.ts` 任何公式 / 常量（I_DEFAULT、R_MIN、MU0）后：三组自检（`selfcheck` / `selfcheck:measured` / `selfcheck:tracking`）+ `npm run build` 全过才可回填状态标记（[`specs/techstack.md`](../../../techstack.md) 测试纪律）。
+改 `src/model/field.ts` 任何公式 / 常量（I_DEFAULT、R_MIN、MU0）后：三组自检（`selfcheck` / `selfcheck:measured` / `selfcheck:tracking`）+ `npm run build` 全过才可回填状态标记（[`specs/techstack.md`](../../../techstack.md) 测试纪律）。
 
 ## 人工验证步骤
 
@@ -42,7 +42,7 @@
 
 - 本功能变更不得破坏 Phase 1 赛道几何行为（`buildElements` / `buildFieldElements` 输出结构不变：mids/dls/count/wires）；
 - 不得破坏下游：`computeB()` 单点场行为不变（03 电感读数、04 方案B 物理基准、05 循迹读数均直接调用）；
-- `npm run selfcheck:measured`、`npm run selfcheck:tracking` 保持全过；其余附加测试（`scripts/test-appstate.ts` / `test-state-restore.ts` / `test-sweep.ts` / `test-corner.ts`）保持全过；
+- `npm run selfcheck:measured`、`npm run selfcheck:tracking` 保持全过；其余附加测试（`scripts/ui/test-appstate.ts` / `test-state-restore.ts` / `test-sweep.ts` / `test-corner.ts`）保持全过；
 - 网格 CSV 导出（`computeGridFull`，含 By）格式不变（属 `specs/features/ui/07-persistence-export/`）。
 
 ## 假设回环

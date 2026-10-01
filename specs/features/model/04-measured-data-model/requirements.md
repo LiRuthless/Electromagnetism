@@ -1,6 +1,6 @@
 # Phase 4: 实测数据经验模型 — 需求
 
-> ✅ 已实现（与 `src/mathmodel/measured.ts` 代码一致）。实现计划见 [plan.md](plan.md)；验证判据见 [validation.md](validation.md)。
+> ✅ 已实现（与 `src/model/measured.ts` 代码一致）。实现计划见 [plan.md](plan.md)；验证判据见 [validation.md](validation.md)。
 
 ## 功能需求
 
@@ -48,15 +48,15 @@
 
   该设计使整体形状与物理一致，偏差项只修正实车与理想模型的差异——外推区与稀疏采样区比纯查表插值更稳健；钳位 ≥ 0 反映 Vpp 非负的物理约束。基准上下文取当前电感安装高度 h、敏感轴、赛道电流 I 与标定 k（式 [(6.4)](../03-sensor-model/requirements.md#eq-6-4)，见 [`specs/features/model/03-sensor-model/requirements.md`](../03-sensor-model/requirements.md)）。
 - **FR-5: 统一求值与仿真回退**。`evalMeasured()` 按当前模型种类求值；**通道无实测数据（或方案A 无拟合结果）时返回 null，调用方回退仿真公式**（式 [(6.1)](../03-sensor-model/requirements.md#eq-6-1)），**读数名加 `*` 标注**。实测版全程扫描 `sweepMeasuredAlongTrack()` 把电感世界坐标换算为 d 后交实测模型求值，回退通道同样加 `*` 标注。
-- **FR-6: 采集数据源 5 种可切换**。右侧面板"采集数据源"下拉：仿真模型 / 实测拟合(方案A) / 实测物理+偏差(方案B) / 串口(预留) / 文件(已实现)（`src/sensors/sources.ts`，`SourceKind = 'simulation' | 'measured-fit' | 'measured-phys' | 'serial' | 'file'`）；实测源未导入数据时给黄色提示。数据源切换即时生效：电感读数剖面、全程扫描、循迹仿真读数注入（`readSensor`）均按当前数据源求值。
+- **FR-6: 采集数据源 5 种可切换**。右侧面板"采集数据源"下拉：仿真模型 / 实测拟合(方案A) / 实测物理+偏差(方案B) / 串口(预留) / 文件(已实现)（`src/model/sources.ts`，`SourceKind = 'simulation' | 'measured-fit' | 'measured-phys' | 'serial' | 'file'`）；实测源未导入数据时给黄色提示。数据源切换即时生效：电感读数剖面、全程扫描、循迹仿真读数注入（`readSensor`）均按当前数据源求值。
 - **FR-7: 实测数据标定区 UI**。右侧面板"实测数据标定"区提供：导入 CSV / 清除按钮；数据集概况（文件名、采样点数、e 范围，含 `eUnitNote` 单位标注）；**通道匹配徽章**（有数据 / 缺失回退）；**方案A 拟合结果表**（每通道 k / h_eff / e0 / RMSE / R²）；**方案B 偏差节点数**（每通道有效偏差节点数）；**单通道对比预览图**（实测散点 + 方案A 拟合曲线 + 方案B 物理+偏差曲线，recharts 实现，可浮出为浮动窗 `measuredFit`，见 [`specs/features/ui/06-ui-charts-panels/requirements.md`](../../ui/06-ui-charts-panels/requirements.md)）。
 - **FR-8: 导入即自动建模、标定状态持久化**。导入入口（`handleImportMeasured`）解析 CSV 后自动完成方案A 拟合（对通道名与当前电感布局匹配的通道逐通道 `fitChannelModel`）与方案B 偏差建模（随求值自动完成，无需显式步骤）；无通道匹配或部分通道拟合失败时弹窗提示。标定状态（数据集 + 拟合结果 `MeasuredState`）与数据源选择随 appState 持久化（见 [`specs/features/ui/07-persistence-export/requirements.md`](../../ui/07-persistence-export/requirements.md)），重启后恢复；"恢复默认"与"清除实测数据"将其清空。
 
 ## 技术约束
 
 - **TC-1: SI 单位内部计算**（[`specs/techstack.md`](../../../techstack.md) 硬性约束 1）。实测模型接口处的 d 以 mm 计（CSV 与拟合网格均为 mm 域），方案B 基准 `physBaseline()` 内部换算 m 后按 SI 计算；读数 U 一律为检波后等效峰峰值 Vpp（V）。
-- **TC-2: `src/mathmodel/measured.ts` 为纯计算层**（硬性约束 2）：禁止任何 UI / React / DOM 依赖；公式或默认值（网格范围、档数、阈值）改动必须同步本规约。
-- **TC-3: 实测源不走 `SensorDataSource` 接口**。`measured-fit` / `measured-phys` 由 Home 直接求值（`evalMeasured`），`createSource()` 对其抛出说明性错误；`FileSource` 仅作"已实现"的指引性 stub（接法说明见 `src/sensors/sources.ts` 头注释）。
+- **TC-2: `src/model/measured.ts` 为纯计算层**（硬性约束 2）：禁止任何 UI / React / DOM 依赖；公式或默认值（网格范围、档数、阈值）改动必须同步本规约。
+- **TC-3: 实测源不走 `SensorDataSource` 接口**。`measured-fit` / `measured-phys` 由 Home 直接求值（`evalMeasured`），`createSource()` 对其抛出说明性错误；`FileSource` 仅作"已实现"的指引性 stub（接法说明见 `src/model/sources.ts` 头注释）。
 - **TC-4: appState schema 纪律**（硬性约束 3）：`measured` 字段经 `sanitizeMeasured()` 逐字段校验回退；启动校验失败回退全默认，绝不崩溃。
 - **TC-5: 公式编号纪律**：式 [(7.1)](#eq-7-1)–[(7.7)](#eq-7-7) 编号与原 LaTeX 表述为需求基准，`matlab-simulink/` 与 `em-field-studio` 代码注释引用这些编号，禁止重编号或改写。
 
@@ -66,12 +66,12 @@
 
 | 文件 | 内容 |
 |---|---|
-| `src/mathmodel/measured.ts` | 本功能全部计算：`parseMeasuredCSV` / `fitChannelModel` / `evalFitModel` / `physBaseline` / `evalPhysModel` / `evalMeasured` / `signedLateralDistance`（2026-08-12 由 `src/sensors/` 并入数学模型层） |
-| `src/mathmodel/sweep.ts` | `sweepMeasuredAlongTrack()`：实测版全程扫描（回退仿真、`*` 标注） |
-| `src/sensors/sources.ts` | 数据源抽象与 `SourceKind` 枚举（实测两源由 Home 直接求值，见 TC-3） |
-| `src/pages/Home.tsx` | `handleImportMeasured`（导入 → 解析 → 逐通道拟合）、读数/扫描/循迹三处的实测求值与仿真回退 |
-| `src/components/SensorPanel.tsx` | 采集数据源下拉、实测数据标定区、`MeasuredFitChart` 对比预览图（浮动窗 id `measuredFit`） |
-| `src/utils/appState.ts` | `measured` / `sourceKind` 持久化与 `sanitizeMeasured()` 校验 |
+| `src/model/measured.ts` | 本功能全部计算：`parseMeasuredCSV` / `fitChannelModel` / `evalFitModel` / `physBaseline` / `evalPhysModel` / `evalMeasured` / `signedLateralDistance`（2026-08-12 由 `src/sensors/` 并入数学模型层） |
+| `src/model/sweep.ts` | `sweepMeasuredAlongTrack()`：实测版全程扫描（回退仿真、`*` 标注） |
+| `src/model/sources.ts` | 数据源抽象与 `SourceKind` 枚举（实测两源由 Home 直接求值，见 TC-3） |
+| `src/ui/pages/Home.tsx` | `handleImportMeasured`（导入 → 解析 → 逐通道拟合）、读数/扫描/循迹三处的实测求值与仿真回退 |
+| `src/ui/components/SensorPanel.tsx` | 采集数据源下拉、实测数据标定区、`MeasuredFitChart` 对比预览图（浮动窗 id `measuredFit`） |
+| `src/ui/utils/appState.ts` | `measured` / `sourceKind` 持久化与 `sanitizeMeasured()` 校验 |
 
 ### 数据结构
 

@@ -116,7 +116,7 @@ $$J=\underbrace{RMS(|e|_{直线})}_{直线贴中线}+\underbrace{2\,RMS(e_{外�
 
 - **差速比 w、轮距 W、步长 dt、电机时间常数 τ_m、初始扰动（initE / initPsi）共 6 项**（τ_m 于 2026-08-12 新增）：数字输入框直接键入（失焦/Enter 提交，合法范围钳位与单位标注）；
 - **其余滑块参数**：滑块两端的最大/最小值为可点击编辑的小输入框，用户可自定义量程（自定义量程随 appState v6 `trackingRanges` 持久化，见 [`specs/features/ui/07-persistence-export/requirements.md`](../../ui/07-persistence-export/requirements.md)）；当前值仍可滑块拖动、也可点数值直接键入（越界钳位到量程）；改量程后当前值越界时自动钳入；
-- 实现：`TrackingPanel.tsx` 的 `SliderField`（量程编辑）+ `NumberField`（直输）+ `MiniNum`（失焦提交小输入；2026-08-15 提取为共享组件 `src/components/ui/mini-num.tsx`）。
+- 实现：`TrackingPanel.tsx` 的 `SliderField`（量程编辑）+ `NumberField`（直输）+ `MiniNum`（失焦提交小输入；2026-08-15 提取为共享组件 `src/ui/components/ui/mini-num.tsx`）。
 
 全参数表（默认值 / 输入方式 / 钳位范围）见下文"接口约定"。
 
@@ -148,7 +148,7 @@ $$J=\underbrace{RMS(|e|_{直线})}_{直线贴中线}+\underbrace{2\,RMS(e_{外�
 ## 技术约束
 
 - **TC-1**：SI 单位内部计算（m、rad、s、m/s）；界面显示/输入用 mm、°、ms、m/s，换算在 UI 层完成（[`specs/techstack.md`](../../../techstack.md) 硬性约束 1）。
-- **TC-2**：控制与运动学内核（`src/mathmodel/control.ts`、`kinematics.ts`）为纯计算层，禁止 UI / React / DOM 依赖；`simulateTracking()` 的读数经 `readSensor` 回调由调用方按当前数据源注入（仿真源 / 实测源），内核不感知数据源（[`specs/techstack.md`](../../../techstack.md) 硬性约束 2）。
+- **TC-2**：控制与运动学内核（`src/model/control.ts`、`kinematics.ts`）为纯计算层，禁止 UI / React / DOM 依赖；`simulateTracking()` 的读数经 `readSensor` 回调由调用方按当前数据源注入（仿真源 / 实测源），内核不感知数据源（[`specs/techstack.md`](../../../techstack.md) 硬性约束 2）。
 - **TC-3**：误差表达式解析禁用 `eval`，走递归下降解析 `compileFormula()`（[`specs/techstack.md`](../../../techstack.md) 硬性约束 5）。
 - **TC-4**：循迹参数持久化于 appState v6 `tracking`（公式文本/A/B/C/P/Kp/Kd/vBase/vMax/w/wheelBase/dtMs/motorTauMs/initE/initPsi/errLimit/errLimitSteps）与滑块自定义量程 `trackingRanges`；motorTauMs（2026-08-12 新增）依赖逐字段回退默认值，**未升版本号**——新增字段优先逐字段回退的先例即此（[`specs/techstack.md`](../../../techstack.md) 硬性约束 3）。
 - **TC-5**：性能——整条轨迹在主线程同步积分（数百~数千步 × 每步电感数个单点场计算，毫秒级）；一键整定的轨迹评价用 `createNearestSeeker` O(窗口) 局部最近点查询，避免全局最近点 O(步数×采样点) 开销；网格搜索分块 `setTimeout(0)` 让出事件循环。
@@ -160,13 +160,13 @@ $$J=\underbrace{RMS(|e|_{直线})}_{直线贴中线}+\underbrace{2\,RMS(e_{外�
 
 | 文件 | 内容 |
 |---|---|
-| `src/mathmodel/control.ts` | `TrackingParams`、`DEFAULT_TRACKING`、`DEFAULT_FORMULA`、`compileFormula()` → `CompiledFormula{variables, eval(vars)}`、`pdOutput()`、`wheelSpeeds()`、`motorLag()` |
-| `src/mathmodel/kinematics.ts` | `CarState{x,y,theta}`、`stepCar()`（半隐式欧拉）、`carFrame()`、`TrackingResult`、`simulateTracking()`、常量 `FINISH_TOLERANCE_M = 0.5`、`MAX_TRACKING_STEPS = 100000` |
-| `src/components/TrackingPanel.tsx` | 循迹控制区 UI（`SliderField` / `NumberField` / `MiniNum`、公式文本框、一键调 PID 按钮与 Kp≤/Kd≤/内收≤ 设置、Err(t)/轮速(t) 曲线与结果摘要） |
-| `src/components/TrackingSensorChart.tsx` | 循迹轨迹电感值折线图（横轴 t / 弧长 s） |
-| `src/pages/Home.tsx` | 轨迹同步重算（防抖 ~200ms，`trackingTick`）、`runAutoTune()`（网格搜索 + 式 [(8.11)](#eq-8-11) 评价 + `segSpans`）、位姿来源编排 |
-| `src/utils/exporters.ts` | `exportTrackingCSV()`（接口②） |
-| `src/utils/appState.ts` | `tracking` / `trackingRanges` 字段持久化与逐字段回退 |
+| `src/model/control.ts` | `TrackingParams`、`DEFAULT_TRACKING`、`DEFAULT_FORMULA`、`compileFormula()` → `CompiledFormula{variables, eval(vars)}`、`pdOutput()`、`wheelSpeeds()`、`motorLag()` |
+| `src/model/kinematics.ts` | `CarState{x,y,theta}`、`stepCar()`（半隐式欧拉）、`carFrame()`、`TrackingResult`、`simulateTracking()`、常量 `FINISH_TOLERANCE_M = 0.5`、`MAX_TRACKING_STEPS = 100000` |
+| `src/ui/components/TrackingPanel.tsx` | 循迹控制区 UI（`SliderField` / `NumberField` / `MiniNum`、公式文本框、一键调 PID 按钮与 Kp≤/Kd≤/内收≤ 设置、Err(t)/轮速(t) 曲线与结果摘要） |
+| `src/ui/components/TrackingSensorChart.tsx` | 循迹轨迹电感值折线图（横轴 t / 弧长 s） |
+| `src/ui/pages/Home.tsx` | 轨迹同步重算（防抖 ~200ms，`trackingTick`）、`runAutoTune()`（网格搜索 + 式 [(8.11)](#eq-8-11) 评价 + `segSpans`）、位姿来源编排 |
+| `src/ui/utils/exporters.ts` | `exportTrackingCSV()`（接口②） |
+| `src/ui/utils/appState.ts` | `tracking` / `trackingRanges` 字段持久化与逐字段回退 |
 
 ### `DEFAULT_TRACKING` 全参数表（默认值 + 范围）
 

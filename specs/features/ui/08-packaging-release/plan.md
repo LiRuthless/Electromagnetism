@@ -25,7 +25,7 @@
 
 ### Group 1: 便携 exe 打包与本机离线流程（2026-07-24 三坑实测记录，2026-07-30 重新打包便携版落地）
 - [x] electron-builder portable 目标配置（`package.json` build 节：productName「电磁场建模仿真工具」、`files: [dist/**, electron/**]`、`win.target = portable`）
-- [x] 本机三坑对策固化：`-c.electronDist=` 离线缓存包、win-unpacked.tmp EPERM 手工组装、`scripts/finish-portable.cjs` 复现 makensis
+- [x] 本机三坑对策固化：`-c.electronDist=` 离线缓存包、win-unpacked.tmp EPERM 手工组装、`scripts/ui/finish-portable.cjs` 复现 makensis
 - [x] [`BUILD-EXE.md`](../../../../em-field-studio/BUILD-EXE.md) 操作手册撰写（标准 5 步流程 + 中间产物清理）
 - [x] 产物复制到工作区根 `E:\study\Electromagnetism\电磁场建模仿真工具 0.1.0.exe`（约 90 MB，覆盖旧版）
 
@@ -40,11 +40,11 @@
 - [x] 正式版：用户明确同意后按 [`BUILD-EXE.md`](../../../../em-field-studio/BUILD-EXE.md) 流程打 Windows 便携版 exe，产物复制到工作区根覆盖旧版
 
 ### Group 4: UI 离屏截图目检工具（2026-08-15，配套 06-ui-charts-panels 面板 UI 组件化改造的验证）
-- [x] `scripts/screenshot.cjs`：Electron 离屏窗口加载 dist 构建产物，可选注入 app-state 种子（演示矩形闭环赛道）、面板滚底/双栏收起，每次运行独立 userData 互不污染
+- [x] `scripts/ui/screenshot.cjs`：Electron 离屏窗口加载 dist 构建产物，可选注入 app-state 种子（演示矩形闭环赛道）、面板滚底/双栏收起，每次运行独立 userData 互不污染
 
 ## 实现顺序与依赖
 
-Group 1（打包）与 Group 2（自检）并行起步、随各 feature 功能演进同步扩充 → Group 3 流程约定（2026-08-03 起约束全部后续发布：2026-08-12/08-13/08-15 各次更新均只出预览版未打 exe） → Group 4 截图工具（依赖 dist 构建产物，2026-08-15）。自检是发布的前置闸门：改 `src/mathmodel/` 后须三组自检 + `npm run build` 全过（[`specs/techstack.md`](../../../techstack.md) 测试策略），打 exe 前须先经预览版确认。
+Group 1（打包）与 Group 2（自检）并行起步、随各 feature 功能演进同步扩充 → Group 3 流程约定（2026-08-03 起约束全部后续发布：2026-08-12/08-13/08-15 各次更新均只出预览版未打 exe） → Group 4 截图工具（依赖 dist 构建产物，2026-08-15）。自检是发布的前置闸门：改 `src/model/` 后须三组自检 + `npm run build` 全过（[`specs/techstack.md`](../../../techstack.md) 测试策略），打 exe 前须先经预览版确认。
 
 ## 风险与取舍
 

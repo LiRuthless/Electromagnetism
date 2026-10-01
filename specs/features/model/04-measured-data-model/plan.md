@@ -15,7 +15,7 @@
 
 - 关联宪章：
   - [`specs/mission.md`](../../../mission.md) 范围内条目"实测数据经验模型（方案A 拟合 / 方案B 物理+偏差）与 CSV 导入导出"；成功标准"仿真与实车的偏差区间被实验量化界定"（本功能承担偏差修正一环）。
-  - [`specs/techstack.md`](../../../techstack.md)：SI 单位内部计算（硬性约束 1）；`src/mathmodel/` 纯计算层（硬性约束 2）；appState schema 纪律（硬性约束 3，实测标定状态入 `MeasuredState`）。
+  - [`specs/techstack.md`](../../../techstack.md)：SI 单位内部计算（硬性约束 1）；`src/model/` 纯计算层（硬性约束 2）；appState schema 纪律（硬性约束 3，实测标定状态入 `MeasuredState`）。
   - [`specs/research/2026-08-13-experiment-modeling.md`](../../../research/2026-08-13-experiment-modeling.md)：实验 6（横向扫描 U(e)，主实测数据集）约定采集规程与数据质量判据；接口① 文件格式约定见 [`specs/features/ui/07-persistence-export/requirements.md`](../../ui/07-persistence-export/requirements.md)。
 - 前置条件：
   - Phase 1（`01-track-geometry`）：`samplePath()` 路径采样点列（signedLateralDistance 的投影对象）；
@@ -49,12 +49,12 @@
 - [x] 标定状态（`measured`）与数据源（`sourceKind`）随 appState 持久化（`sanitizeMeasured` 逐字段校验回退）
 
 ### Group 6: 自动化自检与代码层迁建（自检随功能同步；2026-08-12 迁建）
-- [x] `scripts/selfcheck-measured.ts`：CSV 解析（BOM/分号/单位）、方案A 合成数据回收、方案B 偏差插值、d 符号（判据见 [validation.md](validation.md)）
-- [x] 2026-08-12 文档拆分配套：`src/sensors/measured.ts` 并入 `src/mathmodel/measured.ts`（数学模型层单独维护），构建 + 全部自检通过
+- [x] `scripts/model/selfcheck-measured.ts`：CSV 解析（BOM/分号/单位）、方案A 合成数据回收、方案B 偏差插值、d 符号（判据见 [validation.md](validation.md)）
+- [x] 2026-08-12 文档拆分配套：`src/sensors/measured.ts` 并入 `src/mathmodel/measured.ts`（2026-10-01 改现名 `src/model/measured.ts`），构建 + 全部自检通过
 
 ## 实现顺序与依赖
 
-Group 1（CSV 解析）→ Group 2 / Group 3（两种模型可并行，均只依赖数据集）→ Group 4（d 换算与统一求值，依赖 Phase 1 路径采样）→ Group 5（UI 集成与持久化，依赖 Phase 3 电感布局/标定 k）；Group 6 自检贯穿各组，2026-08-12 随 `src/mathmodel/` 迁建做回归。
+Group 1（CSV 解析）→ Group 2 / Group 3（两种模型可并行，均只依赖数据集）→ Group 4（d 换算与统一求值，依赖 Phase 1 路径采样）→ Group 5（UI 集成与持久化，依赖 Phase 3 电感布局/标定 k）；Group 6 自检贯穿各组，2026-08-12 随 `src/mathmodel/`（现 `src/model/`）迁建做回归。
 
 ## 风险与取舍
 

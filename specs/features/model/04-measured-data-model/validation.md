@@ -23,7 +23,7 @@
 | `npm run build` | 类型检查 + 构建通过 |
 | `npm run selfcheck` / `npm run selfcheck:tracking` | 既有两组自检保持全过（本功能不得破坏，见回归检查） |
 
-改 `src/mathmodel/measured.ts` 任何公式/默认值/参数（网格范围 [15,200]×[−40,40]、60 档、有效点阈值 3 等）后：三组自检 + `npm run build` 全过才可回填本规约状态标记（[`specs/techstack.md`](../../../techstack.md) 测试纪律）。
+改 `src/model/measured.ts` 任何公式/默认值/参数（网格范围 [15,200]×[−40,40]、60 档、有效点阈值 3 等）后：三组自检 + `npm run build` 全过才可回填本规约状态标记（[`specs/techstack.md`](../../../techstack.md) 测试纪律）。
 
 ## 人工验证步骤
 
@@ -40,4 +40,4 @@
 - 数据源为"仿真模型"时，读数剖面、全程扫描、循迹仿真行为与读数不变（式 [(6.1)](../03-sensor-model/requirements.md#eq-6-1)，见 [`specs/features/model/03-sensor-model/validation.md`](../03-sensor-model/validation.md) 与 [`specs/features/model/05-tracking-control/validation.md`](../05-tracking-control/validation.md)）。
 - 方案B 基准随电感高度 h、敏感轴、电流 I、标定 k 联动——改动标定 Vpp 或电流后实测物理+偏差读数应相应变化。
 - appState `APP_STATE_VERSION = 6` 不变；旧存档（无 `measured` 字段）无损加载（[`specs/features/ui/07-persistence-export/validation.md`](../../ui/07-persistence-export/validation.md)）。
-- `npm run selfcheck`、`npm run selfcheck:tracking`、`scripts/test-*` 全部保持通过；`npm run build` 通过。
+- `npm run selfcheck`、`npm run selfcheck:tracking`、`scripts/{model,ui}/test-*` 全部保持通过；`npm run build` 通过。

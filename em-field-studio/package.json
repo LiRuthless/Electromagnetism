@@ -10,11 +10,11 @@
     "dist:win": "npm run build && electron-builder --win portable",
     "lint": "eslint .",
     "preview": "vite preview",
-    "selfcheck": "tsx scripts/selfcheck.ts",
-    "selfcheck:measured": "tsx scripts/selfcheck-measured.ts",
-    "selfcheck:tracking": "tsx scripts/selfcheck-tracking.ts",
-    "selfcheck:sim": "tsx scripts/selfcheck-sim.ts",
-    "selfcheck:wasm": "tsx scripts/selfcheck-wasm.ts"
+    "selfcheck": "tsx scripts/model/selfcheck.ts",
+    "selfcheck:measured": "tsx scripts/model/selfcheck-measured.ts",
+    "selfcheck:tracking": "tsx scripts/model/selfcheck-tracking.ts",
+    "selfcheck:sim": "tsx scripts/model/selfcheck-sim.ts",
+    "selfcheck:wasm": "tsx scripts/model/selfcheck-wasm.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

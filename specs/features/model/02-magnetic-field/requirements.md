@@ -1,6 +1,6 @@
 # Phase 2: 磁场计算与网格调度 — 需求
 
-> ✅ 本功能主体已实现（与 `em-field-studio/src/mathmodel/field.ts`、`src/workers/fieldWorker.ts`、`src/hooks/useFieldGrid.ts` 代码一致）。关联 [`plan.md`](plan.md)。
+> ✅ 本功能主体已实现（与 `em-field-studio/src/model/field.ts`、`src/ui/workers/fieldWorker.ts`、`src/ui/hooks/useFieldGrid.ts` 代码一致）。关联 [`plan.md`](plan.md)。
 > 公式保留归档《数学模型.md》§5 的"式 (x.y)"编号与原 LaTeX 表述——`matlab-simulink/` 与 `em-field-studio/` 代码注释引用这些编号，禁止重编号或改写。
 
 ## 功能需求
@@ -85,9 +85,9 @@ $$B(\rho)=\frac{\mu_0 I}{2\pi\rho} \tag{5.5}$$
 ## 技术约束
 
 - **TC-1**：SI 单位内部计算（m、rad、T、A），仅界面显示用 mm / Vpp（[`specs/techstack.md`](../../../techstack.md) 硬性约束 1）。场值一律 Tesla；电流入参单位 A（界面 mA ÷ 1000）。
-- **TC-2**：`src/mathmodel/field.ts` 为纯计算层，禁止任何 UI / React / DOM 依赖（[`specs/techstack.md`](../../../techstack.md) 硬性约束 2）；公式或默认值（I_DEFAULT、R_MIN、MU0）改动必须同步本规约。
+- **TC-2**：`src/model/field.ts` 为纯计算层，禁止任何 UI / React / DOM 依赖（[`specs/techstack.md`](../../../techstack.md) 硬性约束 2）；公式或默认值（I_DEFAULT、R_MIN、MU0）改动必须同步本规约。
 - **TC-3**：网格单元硬上限 400×400 = 160k（性能保护）；超出时只允许"自动降档到 5 mm 整数档 + 提示"，不得截断赛道范围或静默超算。
-- **TC-4**：Worker 内积分核与主线程 `computeGrid()` 为同一套公式（离散求和 + `wireSegB` 闭式叠加），两条路径结果须逐点一致（`scripts/test-worker.ts` 抽样 maxDiff < 1e-12 验证）；主线程同步路径仅作降级兜底，非常态路径。
+- **TC-4**：Worker 内积分核与主线程 `computeGrid()` 为同一套公式（离散求和 + `wireSegB` 闭式叠加），两条路径结果须逐点一致（`scripts/model/test-worker.ts` 抽样 maxDiff < 1e-12 验证）；主线程同步路径仅作降级兜底，非常态路径。
 - **TC-5**：网格输出为 Float32Array 行优先扁平数组（`idx = iy * nx + ix`，场点取单元中心 `(i + 0.5) · d`），结果 buffer 经 postMessage Transferable 转移（避免拷贝）。
 - **TC-6**：读数与全程扫描在主线程同步计算（毫秒级，不经 Worker）；扫描防抖 250 ms（属 `specs/features/model/03-sensor-model/`）。循迹闭环整条轨迹也在主线程同步积分（属 `specs/features/model/05-tracking-control/`）——本功能的 Worker 调度只覆盖观测面网格批算。
 
@@ -97,11 +97,11 @@ $$B(\rho)=\frac{\mu_0 I}{2\pi\rho} \tag{5.5}$$
 
 | 文件 | 内容 |
 |---|---|
-| `em-field-studio/src/mathmodel/field.ts` | 常量 `MU0 = 4π×10⁻⁷ H/m`、`I_DEFAULT = 0.1 A`、`R_MIN = 1e-3 m`；`wireSegB()` / `computeB()` / `computeGrid()` / `computeGridFull()` / `infiniteWireB()` |
-| `em-field-studio/src/workers/fieldWorker.ts` | 网格 Web Worker：分块（CHUNK_ROWS = 25）/ 协作式取消 / 进度上报 |
-| `em-field-studio/src/hooks/useFieldGrid.ts` | Worker 生命周期 hook：防抖 180 ms / 看门狗 WATCHDOG_MS = 10000 / 主线程兜底 |
-| `em-field-studio/src/pages/Home.tsx` | 网格参数计算：`trackBBox(path, extraWires, 0.35)` 包围盒 + 边距，`GRID_CELL_CAP = 160000`，超上限按 √(nx·ny/上限) 倍率向上取整到 5 mm 档降档 |
-| `em-field-studio/src/components/TrackEditor.tsx` | "物理参数"与"计算状态"分区（FR-7）；`GlobalParams { currentMa, heightMm, gridStepMm, component, logScale }` |
+| `em-field-studio/src/model/field.ts` | 常量 `MU0 = 4π×10⁻⁷ H/m`、`I_DEFAULT = 0.1 A`、`R_MIN = 1e-3 m`；`wireSegB()` / `computeB()` / `computeGrid()` / `computeGridFull()` / `infiniteWireB()` |
+| `em-field-studio/src/ui/workers/fieldWorker.ts` | 网格 Web Worker：分块（CHUNK_ROWS = 25）/ 协作式取消 / 进度上报 |
+| `em-field-studio/src/ui/hooks/useFieldGrid.ts` | Worker 生命周期 hook：防抖 180 ms / 看门狗 WATCHDOG_MS = 10000 / 主线程兜底 |
+| `em-field-studio/src/ui/pages/Home.tsx` | 网格参数计算：`trackBBox(path, extraWires, 0.35)` 包围盒 + 边距，`GRID_CELL_CAP = 160000`，超上限按 √(nx·ny/上限) 倍率向上取整到 5 mm 档降档 |
+| `em-field-studio/src/ui/components/TrackEditor.tsx` | "物理参数"与"计算状态"分区（FR-7）；`GlobalParams { currentMa, heightMm, gridStepMm, component, logScale }` |
 
 ### 函数签名与数据结构
 

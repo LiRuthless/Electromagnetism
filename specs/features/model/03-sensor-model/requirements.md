@@ -1,6 +1,6 @@
 # Phase 3: 电感响应模型 — 需求
 
-> ✅ 已实现（与 `em-field-studio/src/mathmodel/` 代码一致）。公式保留归档设计文档的"式 (x.y)"编号与原 LaTeX 表述，`matlab-simulink/` 与 `em-field-studio` 代码注释引用这些编号。
+> ✅ 已实现（与 `em-field-studio/src/model/` 代码一致）。公式保留归档设计文档的"式 (x.y)"编号与原 LaTeX 表述，`matlab-simulink/` 与 `em-field-studio` 代码注释引用这些编号。
 
 ## 功能需求
 
@@ -86,14 +86,14 @@ $$\psi=\text{切向角}-\theta \tag{6.9}$$
 
 - TC-1: **SI 单位内部计算**（m、rad、T、A），仅界面显示用 mm / Vpp（[`specs/techstack.md`](../../../techstack.md) 硬性约束 1）。代码内 x/y/h/e 均以 m 存储，ψ 以 rad 存储。
 - TC-2: **点探头近似（假设 4）**：6×8 工字电感（Ø6 mm × 高 10 mm）按几何中心点采样磁场。*理由*：电感直径远小于典型探测距离（≥ 20 mm），探头体积内的磁场梯度对平均值的修正为高阶小量。该假设由自检 [10] 的方向性与缩放自洽间接支撑，实车侧适用边界由实验 3/实验 6 数据质量综合体现（[`specs/research/2026-08-13-experiment-modeling.md`](../../../research/2026-08-13-experiment-modeling.md)）。
-- TC-3: 响应、标定、布局、坐标变换与扫描均为**纯计算**，实现于 `src/mathmodel/`（sensor.ts / sweep.ts），禁止任何 UI / React / DOM 依赖（[`specs/techstack.md`](../../../techstack.md) 硬性约束 2）；公式或默认值改动必须同步本规约。
+- TC-3: 响应、标定、布局、坐标变换与扫描均为**纯计算**，实现于 `src/model/`（sensor.ts / sweep.ts），禁止任何 UI / React / DOM 依赖（[`specs/techstack.md`](../../../techstack.md) 硬性约束 2）；公式或默认值改动必须同步本规约。
 - TC-4: 读数与全程扫描在主线程**同步计算**（毫秒级）；扫描依赖变化时防抖 250 ms 重算，拖 s 滑块不触发（调度属人机交互部分，见 `specs/features/ui/06-ui-charts-panels/`）。
 - TC-5: 电感布局、车体位姿（含位姿来源 poseSource 与轨迹进度 trajT）、标定 Vpp 随 appState v6 持久化（schema 纪律见 [`specs/techstack.md`](../../../techstack.md) 硬性约束 3 与 `specs/features/ui/07-persistence-export/`）；默认布局变更本身不引 schema 变化。
 - TC-6: 由循迹轨迹反算 ψ 必须遵守式 [(6.9)](#eq-6-9) 符号约定并归一到 (−π, π]（已修复缺陷的回归防护，见 FR-7）。
 
 ## 接口约定
 
-- **代码落点**：`em-field-studio/src/mathmodel/sensor.ts`（响应公式、标定、布局表、坐标变换）、`em-field-studio/src/mathmodel/sweep.ts`（全程扫描与实测版扫描）；UI 落点 `src/components/SensorPanel.tsx`（车体位姿区、电感布局编辑）、`src/pages/Home.tsx`（位姿状态编排、轨迹位姿反算 `trajPoseInfo`）。
+- **代码落点**：`em-field-studio/src/model/sensor.ts`（响应公式、标定、布局表、坐标变换）、`em-field-studio/src/model/sweep.ts`（全程扫描与实测版扫描）；UI 落点 `src/ui/components/SensorPanel.tsx`（车体位姿区、电感布局编辑）、`src/ui/pages/Home.tsx`（位姿状态编排、轨迹位姿反算 `trajPoseInfo`）。
 - **`CarPose` 结构**（`sensor.ts`）：`{ px, py, tx, ty, e, psi }`——px/py 为赛道中线参考点（世界系，m），tx/ty 为单位切向，e 为横向偏差（m，> 0 向行进方向右侧偏移），psi 为航向角（rad，> 0 向右偏）。
 - **`SensorDef` 与 `defaultLayout()`**（`sensor.ts`）：`{ id, name, x, y, h, axisPreset, axis }`——x/y/h 为车体系坐标与安装高度（m）；`axisPreset: 'z' | 'x' | 'y' | 'custom'`，`axis` 为自定义敏感轴（车体系三分量，无需归一化，`axisPreset = 'custom'` 时生效）。`axisVector(s)` 返回归一化敏感轴：`z → [0,0,1]`、`x → [1,0,0]`、`y → [0,1,0]`、`custom → axis`。`defaultLayout()` 返回 FR-5 表格的 4 电感（y = 0.08、h = 0.075，单位 m）。标定常量：`TOUCH_DIST_M = 0.00325`、`VPP_ANCHOR_DEFAULT = 6`；`touchField(I)` / `kFromAnchor(vppAnchor, I)` 对应式 [(6.3)](#eq-6-3)/[(6.4)](#eq-6-4)。
 - **布局 JSON 格式**：`SensorDef[]` 数组（无 id 亦可导入），字段 `name / x / y / h（m）/ axisPreset / axis[3]`；与导出互逆。工作区样例 `archive/presets/sensor-layout.json` 与默认布局等价。

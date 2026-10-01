@@ -9,7 +9,7 @@
 ## 背景与依据
 
 - 关联宪章：[`specs/mission.md`](../../../mission.md)——愿景"可视、可算、可验证"中电感响应是"磁场分布 → 循迹控制"链条的关键环节；范围内明确包含"电感响应建模、布局编辑、贴线锚点标定与全程扫描"。
-- 关联宪章：[`specs/techstack.md`](../../../techstack.md)——硬性约束 1（SI 单位内部计算，界面显示 mm / Vpp）、硬性约束 2（`src/mathmodel/` 纯计算层）、测试策略（物理正确性自检 + 数值自洽 + 回归防护）。
+- 关联宪章：[`specs/techstack.md`](../../../techstack.md)——硬性约束 1（SI 单位内部计算，界面显示 mm / Vpp）、硬性约束 2（`src/model/` 纯计算层）、测试策略（物理正确性自检 + 数值自洽 + 回归防护）。
 - 前置条件：Phase 1 赛道几何模型（中线采样 `samplePath()` / `pointAtLength()` / `nearestOnPath()`，见 `specs/features/model/01-track-geometry/`）；Phase 2 磁场计算（单点磁场 `computeB()`，式 [(5.1)](../02-magnetic-field/requirements.md#eq-5-1)[(5.2)](../02-magnetic-field/requirements.md#eq-5-2) 与解析对照式 [(5.5)](../02-magnetic-field/requirements.md#eq-5-5)，见 `specs/features/model/02-magnetic-field/`）。
 - 建模前提（假设 4，点探头近似）：6×8 工字电感（Ø6 mm × 高 10 mm）按几何中心点采样磁场。*理由*：电感直径远小于典型探测距离（≥ 20 mm），探头体积内的磁场梯度对平均值的修正为高阶小量。
 - 实验建模配套（🧪 待实操，见 [`specs/research/2026-08-13-experiment-modeling.md`](../../../research/2026-08-13-experiment-modeling.md)）：实验 1 测定 Vpp_anchor（k 的唯一来源）、实验 2 标定线性工作区间（式 [(6.1)](requirements.md#eq-6-1) 线性关系的实车边界）、实验 3 标定各电感实际敏感轴方向。
@@ -22,7 +22,7 @@
 - [x] 由 Vpp 锚点反推 k（式 [(6.4)](requirements.md#eq-6-4)），k 不随电流变化、读数随 B 线性缩放
 - [x] 自检 selfcheck [10]：标定自洽 < 0.05%、严格 2× 线性缩放、cosθ 方向性精确 0.5
 
-（实际实现日期：2026-07-24 随 JS/Electron 初版落地；2026-08-12 迁入 `src/mathmodel/sensor.ts`。）
+（实际实现日期：2026-07-24 随 JS/Electron 初版落地；2026-08-12 迁入 `src/mathmodel/sensor.ts`（现 `src/model/sensor.ts`）。）
 
 ### Group 2: 敏感轴预设与默认 4 电感布局
 - [x] 敏感轴预设 x / y / z / custom（`axisVector()` 归一化），以水平面内方向为主
@@ -55,7 +55,7 @@
 
 ## 实现顺序与依赖
 
-Group 1（响应与标定）依赖 Phase 2 的单点磁场计算；Group 2（布局）依赖 Group 1 的敏感轴定义；Group 3（位姿变换）依赖 Phase 1 的路径采样与 Group 1；Group 4（扫描）依赖 Group 1–3；Group 5（界面）依赖 Group 1–4。实际历史顺序：2026-07-24 初版（Group 1–5 主体）→ 2026-07-31 敏感轴水平化 → 2026-08-02 位姿来源切换 → 2026-08-03 默认 4 电感布局 / 朝向修复 / 循迹轨迹电感值图 → 2026-08-12 迁入 `src/mathmodel/` → 2026-08-15 UI 改造。
+Group 1（响应与标定）依赖 Phase 2 的单点磁场计算；Group 2（布局）依赖 Group 1 的敏感轴定义；Group 3（位姿变换）依赖 Phase 1 的路径采样与 Group 1；Group 4（扫描）依赖 Group 1–3；Group 5（界面）依赖 Group 1–4。实际历史顺序：2026-07-24 初版（Group 1–5 主体）→ 2026-07-31 敏感轴水平化 → 2026-08-02 位姿来源切换 → 2026-08-03 默认 4 电感布局 / 朝向修复 / 循迹轨迹电感值图 → 2026-08-12 迁入 `src/mathmodel/`（现 `src/model/`）→ 2026-08-15 UI 改造。
 
 ## 风险与取舍
 

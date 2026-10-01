@@ -5,13 +5,13 @@
 | # | 检查项 | 方法 | 通过标准 | 关联需求 |
 |---|---|---|---|---|
 | V-1 | 类型检查与构建 | `npm run build` | 退出码 0，tsc + vite 无错误，dist/ 产出 | 全部 FR / TC-5 |
-| V-2 | 四场景截图目检 | `scripts/screenshot.cjs`（默认 / 最长数据源选项 / 双栏收起 / 窄窗口 1280×800） | 四张 PNG 生成；目检无文字溢出、无布局破裂、无控件截断 | FR-1/2/9/11/12/23/25 |
+| V-2 | 四场景截图目检 | `scripts/ui/screenshot.cjs`（默认 / 最长数据源选项 / 双栏收起 / 窄窗口 1280×800） | 四张 PNG 生成；目检无文字溢出、无布局破裂、无控件截断 | FR-1/2/9/11/12/23/25 |
 | V-3 | 折线图统一缩放 | 人工交互（见下） | 框选/滚轮放大、Shift+拖拽平移、双击/"⟲ 复位"回全量程、y 自适应、tooltip 放大后可用 | FR-13/14/15 |
 | V-4 | 折线图浮动化 | 人工交互 | 拖出（阈值=进入画布区）/⧉ 浮出、移动不越界、八向拉伸、最小 240×160、收回留占位、刷新后浮动状态恢复、无数据空态提示 | FR-16/17/18/19 |
 | V-5 | 点击联动车位 | 人工交互 | 扫描点→手动位姿+s；循迹点→跟随轨迹+trajT；无轨迹提示；剖面图不响应；框选不误触联动 | FR-20/21/22 |
 | V-6 | 面板调宽与收起 | 人工交互 | 左 240px–45% / 右 300px–55% / 画布 ≥30%；拖到最小以下自动收起 32px；左收起刷新后保持、右收起不持久化；宽度布局刷新后恢复 | FR-8/9/12 |
 | V-7 | 分区卡片与数值键入 | 人工交互 | 卡片折叠/展开、标题栏按钮不触发折叠、默认折叠项正确；s/e/ψ 与标定 Vpp 键入、越界钳位 | FR-11/24 |
-| V-8 | 物理自检回归 | `npm run selfcheck` / `selfcheck:measured` / `selfcheck:tracking` | 三组全部通过（本功能不改 mathmodel，判据见各对应 feature validation.md） | TC-2/TC-5 |
+| V-8 | 物理自检回归 | `npm run selfcheck` / `selfcheck:measured` / `selfcheck:tracking` | 三组全部通过（本功能不改模型层，判据见各对应 feature validation.md） | TC-2/TC-5 |
 
 ## 自动化验证
 
@@ -19,10 +19,10 @@
 
 ```bash
 npm run build
-node_modules/.bin/electron.cmd scripts/screenshot.cjs shots/ui-default.png   1600 950 default
-node_modules/.bin/electron.cmd scripts/screenshot.cjs shots/ui-measured.png  1600 950 measured
-node_modules/.bin/electron.cmd scripts/screenshot.cjs shots/ui-collapsed.png 1600 950 default collapse
-node_modules/.bin/electron.cmd scripts/screenshot.cjs shots/ui-narrow.png    1280 800 default
+node_modules/.bin/electron.cmd scripts/ui/screenshot.cjs shots/ui-default.png   1600 950 default
+node_modules/.bin/electron.cmd scripts/ui/screenshot.cjs shots/ui-measured.png  1600 950 measured
+node_modules/.bin/electron.cmd scripts/ui/screenshot.cjs shots/ui-collapsed.png 1600 950 default collapse
+node_modules/.bin/electron.cmd scripts/ui/screenshot.cjs shots/ui-narrow.png    1280 800 default
 ```
 
 判据：
@@ -86,7 +86,7 @@ node_modules/.bin/electron.cmd scripts/screenshot.cjs shots/ui-narrow.png    128
 
 本功能不得破坏的既有行为：
 
-- `npm run selfcheck` / `npm run selfcheck:measured` / `npm run selfcheck:tracking` 三组自检全部通过（本功能不改 `src/mathmodel/`，物理结果不得漂移）；
+- `npm run selfcheck` / `npm run selfcheck:measured` / `npm run selfcheck:tracking` 三组自检全部通过（本功能不改 `src/model/`，物理结果不得漂移）；
 - `scripts/test-*.ts` 附加测试（含 appState v6 `floatingCharts` 持久化、状态恢复）通过；
 - 画布铺设交互（直线/圆弧/形状工具、闭环勾选）与转角刻度叠加不受影响（规格见 `specs/features/model/01-track-geometry/`）；
 - 顶栏导出菜单六项导出均可用（格式见 `specs/features/ui/07-persistence-export/`）；

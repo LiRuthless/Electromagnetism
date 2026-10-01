@@ -34,13 +34,13 @@
   | selfcheck [10] | 标定自洽（式 [6.3](../../model/03-sensor-model/requirements.md#eq-6-3)/[6.4](../../model/03-sensor-model/requirements.md#eq-6-4)）、线性缩放、cosθ 方向性 | 解析反推 | < 0.05% / 严格 2× / 精确 0.5 | [`specs/features/model/03-sensor-model/validation.md`](../../model/03-sensor-model/validation.md) |
   | selfcheck:measured | CSV 解析（BOM/分号/单位）、方案A 回收（式 [7.2](../../model/04-measured-data-model/requirements.md#eq-7-2)–[7.4](../../model/04-measured-data-model/requirements.md#eq-7-4)）、方案B 偏差插值（式 [7.7](../../model/04-measured-data-model/requirements.md#eq-7-7)）、d 符号（式 [7.1](../../model/04-measured-data-model/requirements.md#eq-7-1)） | 合成数据 | 回收 ±15%、R² > 0.95 | [`specs/features/model/04-measured-data-model/validation.md`](../../model/04-measured-data-model/validation.md) |
   | selfcheck:tracking | 公式解析（式 [8.1](../../model/05-tracking-control/requirements.md#eq-8-1)）、轮速分配（式 [8.3](../../model/05-tracking-control/requirements.md#eq-8-3)–[8.5](../../model/05-tracking-control/requirements.md#eq-8-5)）、电机一阶滞后（式 [8.6](../../model/05-tracking-control/requirements.md#eq-8-6)/[8.7](../../model/05-tracking-control/requirements.md#eq-8-7)：阶跃 63.2%、差速同 τ 跟随、含滞后闭环收敛）、运动学（式 [8.9](../../model/05-tracking-control/requirements.md#eq-8-9)）、直道收敛、闭环吸合与一圈完赛（式 [8.10](../../model/05-tracking-control/requirements.md#eq-8-10)）、朝向约定回归（式 [6.9](../../model/03-sensor-model/requirements.md#eq-6-9)） | 解析/几何真值 | 全过 | [`specs/features/model/05-tracking-control/validation.md`](../../model/05-tracking-control/validation.md) |
-  | scripts/test-* | appState 持久化、状态恢复、扫描形态、Worker | — | 全过 | [`specs/features/ui/07-persistence-export/validation.md`](../07-persistence-export/validation.md)、[`specs/features/model/02-magnetic-field/validation.md`](../../model/02-magnetic-field/validation.md) |
+  | scripts/{model,ui}/test-* | appState 持久化、状态恢复、扫描形态、Worker | — | 全过 | [`specs/features/ui/07-persistence-export/validation.md`](../07-persistence-export/validation.md)、[`specs/features/model/02-magnetic-field/validation.md`](../../model/02-magnetic-field/validation.md) |
 
-- **FR-4（本机离线打包标准流程，✅）**：按 [`BUILD-EXE.md`](../../../../em-field-studio/BUILD-EXE.md) 五步执行——① `npm run build` 构建 web 端；② `electron-builder --win portable -c.compression=store -c.electronDist=<本机缓存 zip>` 打包 win-unpacked（rename EPERM 时走 ②b 手工接管）；③ `electron-builder --prepackaged release/win-unpacked --win portable` 生成 7z 归档（约 5 分钟，被杀后 7z 仍已落盘）；④ `python scripts/extract-nsi.py` 从 builder-debug.yml 提取 portable.nsi，`node scripts/finish-portable.cjs` 复现 makensis 调用组装最终 exe；⑤ 复制产物到工作区根并清理中间产物。
+- **FR-4（本机离线打包标准流程，✅）**：按 [`BUILD-EXE.md`](../../../../em-field-studio/BUILD-EXE.md) 五步执行——① `npm run build` 构建 web 端；② `electron-builder --win portable -c.compression=store -c.electronDist=<本机缓存 zip>` 打包 win-unpacked（rename EPERM 时走 ②b 手工接管）；③ `electron-builder --prepackaged release/win-unpacked --win portable` 生成 7z 归档（约 5 分钟，被杀后 7z 仍已落盘）；④ `python scripts/ui/extract-nsi.py` 从 builder-debug.yml 提取 portable.nsi，`node scripts/ui/finish-portable.cjs` 复现 makensis 调用组装最终 exe；⑤ 复制产物到工作区根并清理中间产物。
 
 - **FR-5（打包产物落点，✅）**：最终产物为 `E:\study\Electromagnetism\电磁场建模仿真工具 0.1.0.exe`（约 90 MB，单文件便携版），每次发布复制覆盖工作区根旧版；发布毕清理 `release/` 中间产物（win-unpacked、win-unpacked.tmp、*.7z、builder-debug.yml、portable*.nsi、0-messages.nsh）。`-c.compression=store` 只影响 win-unpacked 阶段的临时产物；最终 exe 体积由第 ③ 步的 7z 正常压缩决定（约 90 MB）。**发布渠道（2026-10-01 起）**：产物同时上传 GitHub Releases（exe 不进 git，走 Releases 附件，规避 GitHub 单文件 100MB 限制）；不再保留本地旧版备份（原 `backup/` 做法废止）。
 
-- **FR-6（UI 离屏截图目检工具，✅ 2026-08-15）**：`scripts/screenshot.cjs` 用项目自带 Electron 离屏窗口加载 dist 构建产物并截图，用于面板/界面改造的逐场景目检（用法签名见"接口约定"）；依赖 dist 已构建（先 `npm run build`），截图前等待场计算完成；每次运行独立 userData，互不污染持久化状态。
+- **FR-6（UI 离屏截图目检工具，✅ 2026-08-15）**：`scripts/ui/screenshot.cjs` 用项目自带 Electron 离屏窗口加载 dist 构建产物并截图，用于面板/界面改造的逐场景目检（用法签名见"接口约定"）；依赖 dist 已构建（先 `npm run build`），截图前等待场计算完成；每次运行独立 userData，互不污染持久化状态。
 
 - **FR-7（Electron 主进程约定，✅）**：`electron/main.cjs` 单窗口 1440×900，加载 `dist/index.html`，`contextIsolation` 开、`nodeIntegration` 关。
 
@@ -49,9 +49,9 @@
 - **TC-1（发布闸门，不可协商）**：打 exe 必须经用户明确同意——对应 [`specs/techstack.md`](../../../techstack.md) 硬性约束 4；未经确认只出预览版（build/dev/静态预览 dist），不执行 `npm run dist:win` 或 [`BUILD-EXE.md`](../../../../em-field-studio/BUILD-EXE.md) 任何打包步骤。
 - **TC-2（完全离线打包）**：本机 GitHub 直连超时（2026-07-24 实测 `connect ETIMEDOUT`），electron-builder 不得走默认在线下载；须以 `-c.electronDist=` 指向本机缓存压缩包：`C:\Users\Li\AppData\Local\electron\Cache\0622c5b5b51ab3180f02f5370d555559fd4865e1757af5b2d5583806f774c12f\electron-v43.2.0-win32-x64.zip`。
 - **TC-3（EPERM 手工组装）**：杀毒软件实时扫描锁定刚解压的 Electron 目录，electron-builder 的 rename 必现 `EPERM`；对策为手动 `cp -r win-unpacked.tmp win-unpacked`，组装 `resources/app`（dist + electron + package.json，并把 electron.exe 改名为 `电磁场建模仿真工具.exe`），然后用 `--prepackaged` 跳过打包阶段。
-- **TC-4（300s 限制拆分）**：7z 正常压缩约 5 分钟，单次 Bash 300s 前台跑不完；先单独让 electron-builder 生成 `release/my-app-0.1.0-x64.nsis.7z`（超时被杀也没关系，7z 写完即落盘），再用 `scripts/finish-portable.cjs` 复现 makensis 调用组装最终 exe。
+- **TC-4（300s 限制拆分）**：7z 正常压缩约 5 分钟，单次 Bash 300s 前台跑不完；先单独让 electron-builder 生成 `release/my-app-0.1.0-x64.nsis.7z`（超时被杀也没关系，7z 写完即落盘），再用 `scripts/ui/finish-portable.cjs` 复现 makensis 调用组装最终 exe。
 - **TC-5（Electron 安全）**：`contextIsolation` 开、`nodeIntegration` 关，单窗口加载 `dist/index.html`——对应 [`specs/techstack.md`](../../../techstack.md) 硬性约束 6，打包产物与开发态一致。
-- **TC-6（自检闸门）**：改 `src/mathmodel/` 任何公式/默认值/参数后，三组自检 + `npm run build` 全过才可回填规约状态标记（[`specs/techstack.md`](../../../techstack.md) 测试策略）；测试策略为物理正确性自检 + 数值自洽 + 回归防护，**不引入单元测试框架**。
+- **TC-6（自检闸门）**：改 `src/model/` 任何公式/默认值/参数后，三组自检 + `npm run build` 全过才可回填规约状态标记（[`specs/techstack.md`](../../../techstack.md) 测试策略）；测试策略为物理正确性自检 + 数值自洽 + 回归防护，**不引入单元测试框架**。
 
 ## 接口约定
 
@@ -64,9 +64,9 @@
 | `npm run preview` | `vite preview` | 本地静态预览 dist |
 | `npm run dist:win` | `npm run build && electron-builder --win portable` | 打 Windows 便携 exe——必须经用户确认后执行，本机离线流程见 [`BUILD-EXE.md`](../../../../em-field-studio/BUILD-EXE.md) |
 | `npm run lint` | `eslint .` | 代码规范检查 |
-| `npm run selfcheck` | `tsx scripts/selfcheck.ts` | 物理正确性自检（70 项，FR-3 前 8 行） |
-| `npm run selfcheck:measured` | `tsx scripts/selfcheck-measured.ts` | 实测模型自检 |
-| `npm run selfcheck:tracking` | `tsx scripts/selfcheck-tracking.ts` | 循迹闭环自检 |
+| `npm run selfcheck` | `tsx scripts/model/selfcheck.ts` | 物理正确性自检（70 项，FR-3 前 8 行） |
+| `npm run selfcheck:measured` | `tsx scripts/model/selfcheck-measured.ts` | 实测模型自检 |
+| `npm run selfcheck:tracking` | `tsx scripts/model/selfcheck-tracking.ts` | 循迹闭环自检 |
 
 ### 脚本落点（`em-field-studio/scripts/`）
 
@@ -75,7 +75,7 @@
 | `selfcheck.ts` | 物理正确性自检 selfcheck [1]–[10] | 01-track-geometry / 02-magnetic-field / 03-sensor-model |
 | `selfcheck-measured.ts` | 实测模型自检 | 04-measured-data-model |
 | `selfcheck-tracking.ts` | 循迹闭环自检 | 05-tracking-control |
-| `test-appstate.ts` | appState 持久化（含 v6 字段），运行：`npx tsx scripts/test-appstate.ts` | 07-persistence-export |
+| `test-appstate.ts` | appState 持久化（含 v6 字段），运行：`npx tsx scripts/ui/test-appstate.ts` | 07-persistence-export |
 | `test-state-restore.ts` | 状态恢复 | 07-persistence-export |
 | `test-sweep.ts` | 扫描形态（适配新布局） | 03-sensor-model |
 | `test-corner.ts` | 尖角 | 01-track-geometry / 02-magnetic-field |
@@ -87,7 +87,7 @@
 ### screenshot.cjs 用法签名
 
 ```
-node_modules/.bin/electron.cmd scripts/screenshot.cjs <out.png> [宽] [高] [default|measured|none|种子.json] [scroll|collapse]
+node_modules/.bin/electron.cmd scripts/ui/screenshot.cjs <out.png> [宽] [高] [default|measured|none|种子.json] [scroll|collapse]
 ```
 
 - 代码默认：宽 1600、高 950、variant `default`；

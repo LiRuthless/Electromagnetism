@@ -1,6 +1,6 @@
 # Phase 1: 赛道几何模型与铺设编辑 — 需求
 
-> 状态标记：✅ 已实现（本功能主体全部 ✅，与 `em-field-studio/src/mathmodel/track.ts` 等代码一致）。关联 [`plan.md`](plan.md) / [`validation.md`](validation.md)。
+> 状态标记：✅ 已实现（本功能主体全部 ✅，与 `em-field-studio/src/model/track.ts` 等代码一致）。关联 [`plan.md`](plan.md) / [`validation.md`](validation.md)。
 
 ## 功能需求
 
@@ -97,12 +97,12 @@ $$g=\lVert \mathbf p_{end}\rVert\le g_0,\qquad g_0=\texttt{CLOSE\_SNAP\_M}=20\ \
 ### 转角刻度（原《程序设计说明.md》§3.2 转角刻度小节，全文）
 
 - FR-17（转角刻度标尺，✅）：在赛道每个**转角顶点**（相邻段方向变化处，含闭环吸合处的顶点）沿相接两段、从顶点向两端各画一条刻度标尺，标称长度 **300 mm**（带 100 mm 分度 tick 与端点标注）；相接段长度 < 300 mm 时，该侧标尺只画到段端为止（按实际段长显示）；判定"转角"：相邻段切向夹角 > 5°（尖角）即标注；圆弧段内部不逐点标，仅在段与段的接缝顶点标；**补充约定（实现时具体化）**：圆弧侧标尺沿顶点**切线方向画直标尺**，长度按段弧长截断。
-- FR-18（转角刻度开关，✅）：画布右下角"转角刻度"开关独立控制（默认开，会话内状态，不参与持久化），标尺随视图缩放平移联动，不遮挡段长标注；实现为 `mathmodel/track.ts cornerRulers()` 计算顶点与两侧切向/段长截断，`FieldCanvas.tsx` 叠加层绘制。
+- FR-18（转角刻度开关，✅）：画布右下角"转角刻度"开关独立控制（默认开，会话内状态，不参与持久化），标尺随视图缩放平移联动，不遮挡段长标注；实现为 `model/track.ts cornerRulers()` 计算顶点与两侧切向/段长截断，`FieldCanvas.tsx` 叠加层绘制。
 
 ## 技术约束
 
 - TC-1：内部计算一律 SI 单位（m、rad、T、A），仅界面显示用 mm / Vpp（[`techstack.md`](../../../techstack.md) 硬性约束 1）。
-- TC-2：`src/mathmodel/track.ts` 为纯计算层，禁止任何 UI / React / DOM 依赖（[`techstack.md`](../../../techstack.md) 硬性约束 2）；公式或默认值改动必须同步本规约，且三组自检 + `npm run build` 全过才可回填状态标记（[`techstack.md`](../../../techstack.md) 测试策略）。
+- TC-2：`src/model/track.ts` 为纯计算层，禁止任何 UI / React / DOM 依赖（[`techstack.md`](../../../techstack.md) 硬性约束 2）；公式或默认值改动必须同步本规约，且三组自检 + `npm run build` 全过才可回填状态标记（[`techstack.md`](../../../techstack.md) 测试策略）。
 - TC-3：式 [(4.1)](#eq-4-1)[(4.2)](#eq-4-2)[(4.3)](#eq-4-3) 的编号与 LaTeX 表述冻结——`em-field-studio` 与 `matlab-simulink/` 代码注释引用这些编号，禁止重编号或改写（[`techstack.md`](../../../techstack.md) 目录与代码规范）。
 - TC-4：关键几何常量（改动视为模型变更，须同步本规约与自检）：`MAX_DS = 0.01` m（离散小段最大长度）、`CLOSE_SNAP_M = 0.02` m（闭环吸合阈值）、`samplePath()` 默认步进 0.005 m、`lineSegTo()` 忽略阈值 0.005 m、鼠标铺设顶点吸附 10 mm、转角判定 `minAngleDeg = 5`°、标尺标称长度 `rulerM = 0.3` m（100 mm 分度）。
 - TC-5：持久化边界——赛道定义（含 closed 标志）与编辑/铺设工具状态（editMode / layMode / placing / showSegLengths / arcPending）随 appState v6 持久化（闭环标志自 v5 加入）；转角刻度开关**不持久化**（会话内）。schema 纪律见 [`techstack.md`](../../../techstack.md) 硬性约束 3 与 [`specs/features/ui/07-persistence-export/requirements.md`](../../ui/07-persistence-export/requirements.md)。
@@ -115,13 +115,13 @@ $$g=\lVert \mathbf p_{end}\rVert\le g_0,\qquad g_0=\texttt{CLOSE\_SNAP\_M}=20\ \
 
 | 文件 | 职责 |
 |---|---|
-| `em-field-studio/src/mathmodel/track.ts` | 几何核心（纯计算）：段序列 → 离散电流元 / 路径采样 / 闭环吸合 / 形状工具 / 转角刻度 / 局部最近点查询 |
-| `em-field-studio/src/components/TrackEditor.tsx` | 左侧面板：铺设工具、形状工具、闭环勾选、撤销/清空、段长标注、赛道库、计算状态 |
-| `em-field-studio/src/components/FieldCanvas.tsx` | 中央画布：铺设交互渲染（笔尖/虚影/动态输入框）、段长标注、转角刻度叠加层与右下角开关 |
-| `em-field-studio/src/pages/Home.tsx` | 状态编排：`closureGapMm` 计算、闭环勾选/自动取消、`cornerRulers()` 调用、赛道库操作 |
-| `em-field-studio/src/utils/exporters.ts` | 赛道库 localStorage 持久化（`loadLibrary()`/`saveLibrary()`）与赛道 JSON 导出/导入（`exportTrackJSON()`/`parseTrackJSON()`） |
+| `em-field-studio/src/model/track.ts` | 几何核心（纯计算）：段序列 → 离散电流元 / 路径采样 / 闭环吸合 / 形状工具 / 转角刻度 / 局部最近点查询 |
+| `em-field-studio/src/ui/components/TrackEditor.tsx` | 左侧面板：铺设工具、形状工具、闭环勾选、撤销/清空、段长标注、赛道库、计算状态 |
+| `em-field-studio/src/ui/components/FieldCanvas.tsx` | 中央画布：铺设交互渲染（笔尖/虚影/动态输入框）、段长标注、转角刻度叠加层与右下角开关 |
+| `em-field-studio/src/ui/pages/Home.tsx` | 状态编排：`closureGapMm` 计算、闭环勾选/自动取消、`cornerRulers()` 调用、赛道库操作 |
+| `em-field-studio/src/ui/utils/exporters.ts` | 赛道库 localStorage 持久化（`loadLibrary()`/`saveLibrary()`）与赛道 JSON 导出/导入（`exportTrackJSON()`/`parseTrackJSON()`） |
 
-### 数据结构（`src/mathmodel/track.ts`）
+### 数据结构（`src/model/track.ts`）
 
 ```ts
 export const MAX_DS = 0.01;        // 离散小段最大长度 1 cm

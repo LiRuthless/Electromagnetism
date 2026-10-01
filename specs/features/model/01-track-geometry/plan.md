@@ -8,7 +8,7 @@
 
 ## 背景与依据
 
-- 关联宪章：[`specs/mission.md`](../../../mission.md) 愿景（模型链条第一环"赛道几何"）与范围内条目"电磁赛道的准静磁场建模与可视化"；[`specs/techstack.md`](../../../techstack.md) 硬性约束 1（SI 单位内部计算）、2（`src/mathmodel/` 纯计算层）、3（appState schema 纪律——闭环标志随 v5 加入）与测试策略（物理正确性自检，非单元测试框架）。
+- 关联宪章：[`specs/mission.md`](../../../mission.md) 愿景（模型链条第一环"赛道几何"）与范围内条目"电磁赛道的准静磁场建模与可视化"；[`specs/techstack.md`](../../../techstack.md) 硬性约束 1（SI 单位内部计算）、2（`src/model/` 纯计算层）、3（appState schema 纪律——闭环标志随 v5 加入）与测试策略（物理正确性自检，非单元测试框架）。
 - 前置条件：无（Phase 1 为模型链条起点）。几何核心与 Python 遗留存档 `track_model/track.py` 物理一致（JS 版 2026-07-24 起取代 Python 版）。
 - 下游依赖本功能：02-magnetic-field（电流元/闭式直线段来自 `buildElements()`/`buildFieldElements()`）、03-sensor-model（中线采样 `samplePath()` 作车体位姿参考）、05-tracking-control（`createNearestSeeker()` 局部最近点查询、闭环"仅一圈"判据输入）。
 
@@ -42,7 +42,7 @@
 
 ## 实现顺序与依赖
 
-Group 1 → Group 2 → Group 3 → Group 4。Group 2 的铺设推进 / 虚影预览 / 段长摘要复用 Group 1 的 `advancePen()`/`trackTip()`/`segmentLength()`；Group 3 依赖 Group 1 的 `trackTip()`（`closureGapM()`），并向下游 05-tracking-control 提供 `closed` 输入；Group 4 依赖 Group 1 的段几何与 Group 3 的闭环吸合顶点。2026-08-12 文档拆分时代码由 `src/physics/` 迁建 `src/mathmodel/track.ts`（数学模型层单独维护），无行为变化。
+Group 1 → Group 2 → Group 3 → Group 4。Group 2 的铺设推进 / 虚影预览 / 段长摘要复用 Group 1 的 `advancePen()`/`trackTip()`/`segmentLength()`；Group 3 依赖 Group 1 的 `trackTip()`（`closureGapM()`），并向下游 05-tracking-control 提供 `closed` 输入；Group 4 依赖 Group 1 的段几何与 Group 3 的闭环吸合顶点。2026-08-12 文档拆分时代码由 `src/physics/` 迁建 `src/mathmodel/track.ts`（2026-10-01 改现名 `src/model/`），无行为变化。
 
 ## 风险与取舍
 

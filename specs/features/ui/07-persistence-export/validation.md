@@ -4,11 +4,11 @@
 
 | # | 检查项 | 方法 | 通过标准 | 关联需求 |
 |---|---|---|---|---|
-| V-1 | appState 保存 → 读取往返一致（含 v6 字段 floatingCharts / trackingRanges） | `npx tsx scripts/test-appstate.ts` [A] 组 | 各字段 PASS（trackDef / params / sensors / pose / vppAnchor / sourceKind / 开关 / arcPending / view / floatingCharts / trackingRanges 全一致），退出码 0 | FR-1, FR-2, FR-3 |
-| V-2 | 版本不符（版本 +1、无版本字段）→ null；JSON 损坏 / 关键结构非法（sensors 非数组、非法段定义）→ null | `npx tsx scripts/test-appstate.ts` [B][C] 组；`npx tsx scripts/test-state-restore.ts` 第 1/3/4 项 | `loadAppState()` 返回 null，回退全默认，绝不崩溃，退出码 0 | FR-5, TC-1 |
-| V-3 | 非关键字段非法只回退该字段默认值，不整体失败 | `npx tsx scripts/test-appstate.ts` [D] 组 | 仍返回状态；vppAnchor 回退 6、sourceKind 回退 simulation、component 回退 bz、非法 view 回退 null | FR-5 |
-| V-4 | 状态恢复完整往返（空存储 → null；保存后逐字段恢复） | `npx tsx scripts/test-state-restore.ts` | 末行输出"全部通过：状态可以完整保存并恢复"，退出码 0 | FR-1, FR-5 |
-| V-5 | "恢复默认"只清工作状态 key，赛道库不受影响 | `npx tsx scripts/test-appstate.ts` [E] 组 | `clearAppState()` 后 app-state 已清除，`em-field-studio/track-library` 内容不变 | FR-7, FR-8 |
+| V-1 | appState 保存 → 读取往返一致（含 v6 字段 floatingCharts / trackingRanges） | `npx tsx scripts/ui/test-appstate.ts` [A] 组 | 各字段 PASS（trackDef / params / sensors / pose / vppAnchor / sourceKind / 开关 / arcPending / view / floatingCharts / trackingRanges 全一致），退出码 0 | FR-1, FR-2, FR-3 |
+| V-2 | 版本不符（版本 +1、无版本字段）→ null；JSON 损坏 / 关键结构非法（sensors 非数组、非法段定义）→ null | `npx tsx scripts/ui/test-appstate.ts` [B][C] 组；`npx tsx scripts/ui/test-state-restore.ts` 第 1/3/4 项 | `loadAppState()` 返回 null，回退全默认，绝不崩溃，退出码 0 | FR-5, TC-1 |
+| V-3 | 非关键字段非法只回退该字段默认值，不整体失败 | `npx tsx scripts/ui/test-appstate.ts` [D] 组 | 仍返回状态；vppAnchor 回退 6、sourceKind 回退 simulation、component 回退 bz、非法 view 回退 null | FR-5 |
+| V-4 | 状态恢复完整往返（空存储 → null；保存后逐字段恢复） | `npx tsx scripts/ui/test-state-restore.ts` | 末行输出"全部通过：状态可以完整保存并恢复"，退出码 0 | FR-1, FR-5 |
+| V-5 | "恢复默认"只清工作状态 key，赛道库不受影响 | `npx tsx scripts/ui/test-appstate.ts` [E] 组 | `clearAppState()` 后 app-state 已清除，`em-field-studio/track-library` 内容不变 | FR-7, FR-8 |
 | V-6 | 防抖 300 ms 自动保存 | 人工 | 改动任一状态后约 0.3 s 内写入 localStorage；刷新页面后状态完整恢复 | FR-4 |
 | V-7 | 六项导出文件格式核对 | 人工（见下） | 各文件列/表头注释/BOM 与 [`requirements.md`](requirements.md) 导出表一致；JSON 导出 → 导入互逆 | FR-9, TC-4, TC-5 |
 | V-8 | panel-layout 独立 key 行为 | 人工 | 拖拽调宽后刷新保持；手动改坏该 key 只回退默认宽度、工作状态不丢；该 key 无版本号 | FR-6, TC-2 |
@@ -20,8 +20,8 @@
 在 `em-field-studio/` 下执行：
 
 ```bash
-npx tsx scripts/test-appstate.ts        # appState 持久化（含 v6 字段）
-npx tsx scripts/test-state-restore.ts   # 状态恢复
+npx tsx scripts/ui/test-appstate.ts        # appState 持久化（含 v6 字段）
+npx tsx scripts/ui/test-state-restore.ts   # 状态恢复
 npm run build                           # 类型检查 + 构建
 ```
 

@@ -9,21 +9,21 @@
 ## 背景与依据
 
 - 关联宪章：[`specs/mission.md`](../../../mission.md) 范围内条目"实车嵌入式控制代码以 WASM 形式载入仿真验证：控制器 ABI 约定（宿主导入函数 + 多速率任务入口）+ 内置公式控制器兜底"；范围外条目"实车嵌入式工程本身（交叉编译链、烧录、车队仓库维护）"——本项目只提供 ABI 约定与 WASM 仿真宿主。
-- 技术约束（[`specs/techstack.md`](../../../techstack.md)）：硬性约束 1（SI 单位内部计算——env 导入全部 SI，唯 `set_motor_pwm` 归一化 −1..1 为例外）；约束 2（`src/mathmodel/` 纯计算层——`WebAssembly` API 在浏览器与 Node/tsx 均为全局可用，不引入 DOM 依赖，宿主实现可留在模型层并被脚本直跑）；约束 3（appState schema 纪律——只记来源文件名，逐字段回退，不升版本，见 requirements.md TC-3）；约束 6（**控制器 ABI 稳定**——本 feature 即该约束的落地载体：`CTRL_ABI_VERSION = 1` 发布后，变更必须升版本并同步模板工程与 fixture）。
+- 技术约束（[`specs/techstack.md`](../../../techstack.md)）：硬性约束 1（SI 单位内部计算——env 导入全部 SI，唯 `set_motor_pwm` 归一化 −1..1 为例外）；约束 2（`src/model/` 纯计算层——`WebAssembly` API 在浏览器与 Node/tsx 均为全局可用，不引入 DOM 依赖，宿主实现可留在模型层并被脚本直跑）；约束 3（appState schema 纪律——只记来源文件名，逐字段回退，不升版本，见 requirements.md TC-3）；约束 6（**控制器 ABI 稳定**——本 feature 即该约束的落地载体：`CTRL_ABI_VERSION = 1` 发布后，变更必须升版本并同步模板工程与 fixture）。
 - 前置条件：Phase 12 [`../12-simulator-architecture/`](../12-simulator-architecture/)（`CarController{init/step/reset}` 接口、内置 FormulaController、按任务周期表触发控制器任务的多速率调度器、物理积分 dt 与控制周期分离）；Phase 5 [`../05-tracking-control/`](../05-tracking-control/)（式 [(8.3)](../05-tracking-control/requirements.md#eq-8-3)–[(8.7)](../05-tracking-control/requirements.md#eq-8-7) 的"轮速指令 → 限幅 → 电机一阶滞后"链路后半段、`MAX_TRACKING_STEPS = 100000` 步数硬上限、TrackingPanel 循迹控制区）；Phase 3 [`../03-sensor-model/`](../03-sensor-model/)（4 电感布局与读数注入）。
 - 运行环境：`electron/main.cjs` 已确认 `contextIsolation: true`、`nodeIntegration: false`——渲染进程无 Node API，wasm 加载只能走浏览器全局 `WebAssembly` API（`WebAssembly.instantiate(bytes, {env})`），不引第三方 wasm 运行时。
 - ABI 风格决策（用户访谈确认）：**宿主导入函数（syscall 式），不传内存结构体**——对多 MCU / 算法频繁更换的场景最稳，避免线性内存结构体布局与宿主耦合；代价是每次读数一次跨边界调用，仿真规模（数千步 × 每步数次调用）下开销可忽略。
 
 ## 任务分组（Task Groups）
 
-### Group 1: 控制器 ABI 定义（`src/mathmodel/sim/controllerAbi.ts`）
+### Group 1: 控制器 ABI 定义（`src/model/sim/controllerAbi.ts`）
 - [x] 常量 `CTRL_ABI_VERSION = 1`；wasm 可导出同名全局/函数声明版本，不匹配时拒绝加载并提示
 - [x] wasm 导出入口表：`ctrl_init()` / `ctrl_task_1ms()` / `ctrl_task_2ms()`（存在性探测，缺哪个跳过哪个并报提示；两个任务入口全缺视为无效控制器）
 - [x] env 导入函数表（全部 float32 参数与返回值、SI 单位）：`read_adc(ch)` / `read_gyro_z()` / `read_accel_x()` / `read_accel_y()` / `read_encoder_speed()` / `get_time_ms()` / `set_motor_pwm(left, right)`
 - [x] math 兜底导入表：`sinf/cosf/tanf/asinf/acosf/atanf/atan2f/sqrtf/fabsf/powf/expf/logf/floorf/ceilf/fmodf`
 - [x] PWM→轮速映射式 [(13.1)](requirements.md#eq-13-1)（归一化 → vMax 线性映射 → 循迹限幅 [0, vMax] → 电机一阶滞后）
 
-### Group 2: WasmController 宿主（`src/mathmodel/sim/wasmController.ts`）
+### Group 2: WasmController 宿主（`src/model/sim/wasmController.ts`）
 - [x] `WasmController` 实现 Phase 12 `CarController` 接口：`WebAssembly.instantiate(bytes, {env})`、任务入口存在性探测、env 函数闭包绑定当前 Vehicle 采样器（`ControllerHost`，Simulator 构造时 attach）
 - [x] 健壮性：无效 wasm 字节 / 缺全部任务入口 / ABI 版本不符 / 运行时 trap → 明确报错并回退内置 FormulaController，绝不崩溃
 - [x] 死循环防护：沿用 100000 步硬上限（同进程无法强杀 wasm，限制写入规约 FR-8）
@@ -39,8 +39,8 @@
 
 ### Group 5: 持久化与自检 fixture
 - [x] appState：新增字段只记来源文件名（提示用），逐字段回退默认值，**未升 APP_STATE_VERSION**（见 requirements.md TC-3 理由）
-- [x] `scripts/selfcheck-wasm.ts`（tsx 直跑，npm script `selfcheck:wasm`）：fixture 一致性 / ABI 健壮性 / 多速率入口探测（V-2/V-3 用编程构造的最小 wasm 字节，不依赖 clang）
-- [ ] fixture 流程：用户本机跑 `controller-template/build.bat` 生成 `scripts/fixtures/pd_controller.wasm` 后提交入库——**待用户执行（本机无 clang），V-1 在此之前明确报错**
+- [x] `scripts/model/selfcheck-wasm.ts`（tsx 直跑，npm script `selfcheck:wasm`）：fixture 一致性 / ABI 健壮性 / 多速率入口探测（V-2/V-3 用编程构造的最小 wasm 字节，不依赖 clang）
+- [ ] fixture 流程：用户本机跑 `controller-template/build.bat` 生成 `scripts/model/fixtures/pd_controller.wasm` 后提交入库——**待用户执行（本机无 clang），V-1 在此之前明确报错**
 
 （实际实现日期：2026-10-01，Group 1–5 除 fixture 生成外全部落地）
 

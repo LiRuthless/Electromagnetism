@@ -5,7 +5,7 @@
 
 ## 目标
 
-将数学模型链条 §4～§8（赛道几何 → 磁场分布 → 电感响应 → 循迹控制）移植为 MATLAB/Simulink 对照实现（`matlab-simulink/`），公式与默认值与 `em-field-studio/src/mathmodel/` **逐行对齐**，公式注释的"式 (x.y)"编号与 specs/features/ 各规约保留的原编号一致。提供 `build_all` / `runAll` 一键流程、`em_field_check` / `em_track_sim` 双 Simulink 模型与演示出图，作为 JS 主实现的独立交叉验证。
+将数学模型链条 §4～§8（赛道几何 → 磁场分布 → 电感响应 → 循迹控制）移植为 MATLAB/Simulink 对照实现（`matlab-simulink/`），公式与默认值与 `em-field-studio/src/model/` **逐行对齐**，公式注释的"式 (x.y)"编号与 specs/features/ 各规约保留的原编号一致。提供 `build_all` / `runAll` 一键流程、`em_field_check` / `em_track_sim` 双 Simulink 模型与演示出图，作为 JS 主实现的独立交叉验证。
 
 ## 背景与依据
 

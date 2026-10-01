@@ -9,21 +9,21 @@
 ## 背景与依据
 
 - 关联宪章：[`specs/mission.md`](../../../mission.md) 范围内条目"循迹闭环仿真：可编辑误差公式、PD、差速轮速、电机一阶滞后、运动学积分、一键整定"；成功标准"一键整定得到的 Kp/Kd 与整车参数（τ_m、W、v_base）经实验标定回填后可直接指导实车调参"。
-- 技术约束（[`specs/techstack.md`](../../../techstack.md)）：硬性约束 1（SI 单位内部计算，界面显示 mm / Vpp）；约束 2（`src/mathmodel/` 纯计算层，禁 UI 依赖）；约束 3（appState schema 纪律——本功能 motorTauMs 逐字段回退、未升版本即其先例）；约束 5（**表达式解析禁用 `eval`**，误差公式走递归下降解析 `compileFormula()`）。
+- 技术约束（[`specs/techstack.md`](../../../techstack.md)）：硬性约束 1（SI 单位内部计算，界面显示 mm / Vpp）；约束 2（`src/model/` 纯计算层，禁 UI 依赖）；约束 3（appState schema 纪律——本功能 motorTauMs 逐字段回退、未升版本即其先例）；约束 5（**表达式解析禁用 `eval`**，误差公式走递归下降解析 `compileFormula()`）。
 - 前置条件：Phase 1 `01-track-geometry`（路径采样 `samplePath()`/`pointAtLength()`、闭环吸合、`createNearestSeeker()` 局部最近点查询）；Phase 2 `02-magnetic-field`（单点场 `computeB()`）；Phase 3 `03-sensor-model`（式 [(6.1)](../03-sensor-model/requirements.md#eq-6-1) 响应、车体位姿变换、式 [(6.9)](../03-sensor-model/requirements.md#eq-6-9) ψ 符号约定）；Phase 4 `04-measured-data-model`（实测数据源，`readSensor` 按当前数据源注入）。
 - 参数性质：τ_m、W、v_base 等整车参数均为名义先验值，由实车实验标定回填（实验规程见 [`specs/research/2026-08-13-experiment-modeling.md`](../../../research/2026-08-13-experiment-modeling.md) 实验 4/5；数据接口见 `specs/features/ui/07-persistence-export/` 接口③）。
 - 源文档：归档版《数学模型.md》§8（[`archive/docs/legacy/数学模型.md`](../../../../archive/docs/legacy/数学模型.md)，式 [(8.1)](requirements.md#eq-8-1)–[(8.11)](requirements.md#eq-8-11)）、归档版《程序设计说明.md》§4（[`archive/docs/legacy/程序设计说明.md`](../../../../archive/docs/legacy/程序设计说明.md)）。
 
 ## 任务分组（Task Groups）
 
-### Group 1: 控制律内核（`src/mathmodel/control.ts`）
+### Group 1: 控制律内核（`src/model/control.ts`）
 - [x] 误差公式默认式 [(8.1)](requirements.md#eq-8-1)（差比和差加权，`DEFAULT_FORMULA`，2026-08-03 随 4 电感默认布局去 F1/F2）
 - [x] 可编辑表达式：递归下降解析 `compileFormula()`（无 eval），变量 = 各电感名 + A/B/C/P，支持 `+ - * /`、括号、一元负号、`abs(...)` 与 `|...|`；语法非法提示并回退默认公式；求值时分母为零等非法结果回退上一步误差（避免轨迹发散出 NaN）
 - [x] PD 控制式 [(8.2)](requirements.md#eq-8-2) 与差速轮速分配式 [(8.3)](requirements.md#eq-8-3)–[(8.5)](requirements.md#eq-8-5)（内轮变化量 : 外轮变化量 = w : 1，限幅 [0, v_max]）
 
 （实际实现日期：2026-07-31 设计、2026-08-02 前落地；默认公式联动调整为 2026-08-03）
 
-### Group 2: 运动学与仿真主循环（`src/mathmodel/kinematics.ts`）
+### Group 2: 运动学与仿真主循环（`src/model/kinematics.ts`）
 - [x] 两轮差速运动学式 [(8.8)](requirements.md#eq-8-8)[(8.9)](requirements.md#eq-8-9)（半隐式欧拉：先转后移）、初始位姿 = 起点中线 + 切向航向 + 初始 e/ψ 扰动
 - [x] 闭环信号流主循环 `simulateTracking()`——**关键约定（2026-08-02 明确）**：Err 计算所用电感值是车体在**仿真轨迹实际位姿**处读到的值，不是赛道中线参考位姿下的读数
 - [x] 终止条件式 [(8.10)](requirements.md#eq-8-10)：闭环赛道仅一圈 / 非闭环 +0.5 m 容差 / 失控判停（|Err| 持续超 errLimit 达 errLimitSteps 步）/ 步数硬上限 100000 / 位姿 NaN 判失控

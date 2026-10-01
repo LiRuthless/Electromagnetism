@@ -20,7 +20,7 @@
   $$\text{finished：行驶弧长}\ge\begin{cases}L_{track} & \text{闭环赛道（仅一圈）}\\ L_{track}+0.5\ \text{m} & \text{非闭环}\end{cases} \tag{8.10}$$
 
   此外 |Err| 持续超 errLimit 达 errLimitSteps 步判 lost。
-- FR-5: `params.m` 为**唯一参数来源**，默认值与 JS 侧（`em-field-studio/src/mathmodel/`）一致，单位一律 SI（m、rad、T、A、V、s）；参数表见接口约定。
+- FR-5: `params.m` 为**唯一参数来源**，默认值与 JS 侧（`em-field-studio/src/model/`）一致，单位一律 SI（m、rad、T、A、V、s）；参数表见接口约定。
 - FR-6: `init(trackName, P)` 将参数结构体 P 与赛道数据结构 TD 注入 base 工作区（`assignin`），供 Simulink 模型运行时经 `evalin('base',...)` 读取；改参数/换赛道只需重新 `init`，无需重建模型。
 - FR-7: 双 Simulink 模型由脚本程序化构建（`build_all` 一键 = `init` + `build_em_field_check` + `build_em_track_sim`）：
   - `em_field_check.slx`：Plant 开环验证——直导线横向扫描 U(e)（e 自 −150 mm 以 0.1 m/s 扫至 +150 mm，y = 2.0 m 处、θ = π/2），固定 3 s 判停，供对照解析解（式 [(5.5)](../02-magnetic-field/requirements.md#eq-5-5)）；
@@ -34,7 +34,7 @@
 - TC-1: 环境 MATLAB R2025a + Simulink（仅需基础 Simulink，无额外工具箱）；本机 MATLAB：`E:\APP\MATLAB\R2025a`。
 - TC-2: SI 单位内部计算（m、rad、T、A、V、s），与 [`techstack.md`](../../../techstack.md) 硬性约束 1 一致。
 - TC-3: 求解器统一 Fixed-step discrete，步长 5 ms（`P.dt`，与实车控制周期一致）；`em_field_check` StopTime 固定 3.0 s，`em_track_sim` StopTime = `P.stopTime`（默认 120 s，实际由终止判定提前 Stop）。
-- TC-4: 公式与默认值与 `em-field-studio/src/mathmodel/` 逐行对齐；MATLAB 侧任何公式/默认值改动必须同步对应 feature 规约与 JS 侧（对齐方向以 JS 侧为准）。
+- TC-4: 公式与默认值与 `em-field-studio/src/model/` 逐行对齐；MATLAB 侧任何公式/默认值改动必须同步对应 feature 规约与 JS 侧（对齐方向以 JS 侧为准）。
 - TC-5: 算法块用 Interpreted MATLAB Function（`blocks/ifc*.m`），运行时 `evalin('base',...)` 读 P/TD（本机 Stateflow MATLAB Function 块 chart.Script 解析存在环境性故障，故改用解释型块）。
 - TC-6: 闭环仿真必须 `P.Pcoef = -1` 才闭合负反馈（本布局 (L−R)/(L+R) 与纠偏方向相反，与 JS 侧 `selfcheck-tracking.ts` 的 `P:-1` 一致）；`params` 默认 +1 忠实于式 [(8.1)](../05-tracking-control/requirements.md#eq-8-1) 原文，`runAll` 与 `plot_trajectory` 内部已置 −1。
 - TC-7: 模型中两处除法（/dt、/W）用 Product 真除法而非 1/x 增益，保持与参考实现逐 bit 兼容（倒数乘与除法在 IEEE 下差 1 ulp，S 弯弯心振荡段会被放大，见 `selfcheck/dbg_diff.m`）。

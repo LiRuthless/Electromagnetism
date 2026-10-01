@@ -38,7 +38,7 @@
   - 接口③④当前版本**不入 localStorage、不影响 `APP_STATE_VERSION`**——它们是文件级约定，程序无对应持久化字段；
   - 接口①的文件即实验 6 的直接产物，采集时务必保持 I = 100 mA 恒定、电感布局与程序内一致（默认布局见 [`specs/features/model/03-sensor-model/requirements.md`](../../model/03-sensor-model/requirements.md)），否则方案B 物理基准（含 h 与标定 k）会失配；
   - 建议文件命名：`exp1_标定_YYYYMMDD.csv`、`exp6_直道扫描_YYYYMMDD.csv`、`exp4_阶跃_YYYYMMDD.csv`、`exp9_循迹日志_YYYYMMDD.csv`，统一存放工作区 `measured-data\` 目录（⬜ 约定，首次实验时建立）；
-  - 后续若实车数据量增大，优先实现接口④的程序内对比视图（仿真/实车 Err(t)、轮速(t)、电感 U(t) 曲线叠加，roadmap Phase 10），其次评估 SerialSource 串口直采（接法已写在 `src/sensors/sources.ts` 头注释，roadmap Phase 11）。
+  - 后续若实车数据量增大，优先实现接口④的程序内对比视图（仿真/实车 Err(t)、轮速(t)、电感 U(t) 曲线叠加，roadmap Phase 10），其次评估 SerialSource 串口直采（接法已写在 `src/model/sources.ts` 头注释，roadmap Phase 11）。
 
 ## 技术约束
 
@@ -54,10 +54,10 @@
 
 ### 代码文件落点
 
-- `src/utils/appState.ts`——工作状态持久化：`APP_STATE_KEY = 'em-field-studio/app-state'`、`APP_STATE_VERSION = 6`、`AppState` 接口、`loadAppState()`（读取并校验，失败返回 null）/ `saveAppState()`（写入失败静默忽略）/ `clearAppState()`（只清工作状态 key），以及逐字段校验函数 `sanitizeTrackDef / sanitizeParams / sanitizeSensor / sanitizeTracking / sanitizeFloatingCharts / sanitizeTrackingRanges / sanitizeMeasured`。
-- `src/utils/exporters.ts`——导出与赛道库：`exportGridCSV / exportReadingsCSV / exportSweepCSV / exportTrackingCSV / exportCanvasPNG / exportTrackJSON / parseTrackJSON`；赛道库 `loadLibrary / saveLibrary`（key `em-field-studio/track-library`，元素 `SavedTrack = { name, def: TrackDef, savedAt }`）。
-- `src/pages/Home.tsx`——全部状态编排：工作状态变化防抖 300 ms 自动保存（`saveAppState`）；`PANEL_LAYOUT_KEY = 'em-field-studio/panel-layout'` 的加载/保存；`resetDefaults()`（确认弹窗 → `clearAppState()` → 各状态回默认值、电感布局回 `defaultLayout()`、画布重挂载回自动 fit）。
-- `src/components/SensorPanel.tsx`——电感布局 JSON 导出/导入（导出文件名 `sensor-layout.json`，导出时剔除内部 `id` 字段）。
+- `src/ui/utils/appState.ts`——工作状态持久化：`APP_STATE_KEY = 'em-field-studio/app-state'`、`APP_STATE_VERSION = 6`、`AppState` 接口、`loadAppState()`（读取并校验，失败返回 null）/ `saveAppState()`（写入失败静默忽略）/ `clearAppState()`（只清工作状态 key），以及逐字段校验函数 `sanitizeTrackDef / sanitizeParams / sanitizeSensor / sanitizeTracking / sanitizeFloatingCharts / sanitizeTrackingRanges / sanitizeMeasured`。
+- `src/ui/utils/exporters.ts`——导出与赛道库：`exportGridCSV / exportReadingsCSV / exportSweepCSV / exportTrackingCSV / exportCanvasPNG / exportTrackJSON / parseTrackJSON`；赛道库 `loadLibrary / saveLibrary`（key `em-field-studio/track-library`，元素 `SavedTrack = { name, def: TrackDef, savedAt }`）。
+- `src/ui/pages/Home.tsx`——全部状态编排：工作状态变化防抖 300 ms 自动保存（`saveAppState`）；`PANEL_LAYOUT_KEY = 'em-field-studio/panel-layout'` 的加载/保存；`resetDefaults()`（确认弹窗 → `clearAppState()` → 各状态回默认值、电感布局回 `defaultLayout()`、画布重挂载回自动 fit）。
+- `src/ui/components/SensorPanel.tsx`——电感布局 JSON 导出/导入（导出文件名 `sensor-layout.json`，导出时剔除内部 `id` 字段）。
 
 ### 数据结构（appState v6）
 

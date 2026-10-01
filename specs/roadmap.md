@@ -42,7 +42,7 @@
 - 功能规约：`specs/features/ui/07-persistence-export/`
 
 ### Phase 8: 打包发布与自检体系 `08-packaging-release`
-- [x] 两阶段发布流程（预览版→确认后打 exe）、BUILD-EXE 本机离线打包、三组自检命令与 scripts/test-*、screenshot.cjs 离屏截图目检
+- [x] 两阶段发布流程（预览版→确认后打 exe）、BUILD-EXE 本机离线打包、三组自检命令与 scripts/{model,ui}/test-*、screenshot.cjs 离屏截图目检
 - 规模：small
 - 功能规约：`specs/features/ui/08-packaging-release/`
 
@@ -58,7 +58,7 @@
 - 功能规约：`specs/features/ui/10-vehicle-log-compare/`（骨架已建，待数据到位后访谈补全）
 
 ### Phase 11: SerialSource 串口直采 `11-serial-source`
-- [ ] 接 Web Serial 实车 ADC 直采（接法已写在 `src/sensors/sources.ts` 头注释）
+- [ ] 接 Web Serial 实车 ADC 直采（接法已写在 `src/model/sources.ts` 头注释）
 - 规模：medium
 - 功能规约：待启动时创建（建于 `specs/features/model/` 下——实车数据入口，归模型层）
 
@@ -72,7 +72,7 @@
 - 规模：large
 - 前置依赖：Phase 12 的 CarController 接口与调度器
 - 功能规约：`specs/features/model/13-wasm-controller/`
-- 进度（2026-10-01）：代码与模板工程已实现（selfcheck:wasm 的 V-2/V-3 全过、既有自检与 build 回归全过）；**fixture `scripts/fixtures/pd_controller.wasm` 待本机 clang 跑 controller-template/build.bat 生成入库后补验 V-1**，故本阶段保持未勾
+- 进度（2026-10-01）：代码与模板工程已实现（selfcheck:wasm 的 V-2/V-3 全过、既有自检与 build 回归全过）；**fixture `scripts/model/fixtures/pd_controller.wasm` 待本机 clang 跑 controller-template/build.bat 生成入库后补验 V-1**，故本阶段保持未勾
 
 ## 功能域视图
 
@@ -103,13 +103,13 @@
 
 - 已完成：Phase 01–09（电磁场建模仿真工具 0.1.0，2026-08-15 版 exe 已发布；Simulink 移植 2026-09 落地）；Phase 12（2026-10-01 仿真器架构分层落地，等价重构零偏差）；Phase 13 代码部分（2026-10-01 WASM 车载控制器落地，selfcheck:wasm V-2/V-3 全过）
 - 进行中：无代码阶段——等待用户执行实验建模（[`specs/research/2026-08-13-experiment-modeling.md`](research/2026-08-13-experiment-modeling.md)，🧪 三类九项实验，按实验 1→2→3→6/7→4/5→8/9 依赖顺序）
-- 下一步：Phase 13 收尾（本机 clang 生成 `scripts/fixtures/pd_controller.wasm` 补验 V-1 后勾选）；Phase 10（待实验 9 数据到位）；Phase 11 仍为预留方向
+- 下一步：Phase 13 收尾（本机 clang 生成 `scripts/model/fixtures/pd_controller.wasm` 补验 V-1 后勾选）；Phase 10（待实验 9 数据到位）；Phase 11 仍为预留方向
 
 ## 已合并/已取消的计划
 
 - 2026-07-31：实测方案B 由查表插值（LUT）改为物理公式基准 + 偏差校正——LUT 方案取消（外推区/稀疏采样区不如物理基准稳健）。
 - 2026-08-03：默认电感布局改为预设 4 电感，默认误差公式去 F1/F2；一键调 PID 目标函数由"最快完赛"改为"轨迹形状贴合"（直线贴中线、弯道内收圆润、外偏双倍罚、罚航向抖动）。
-- 2026-08-12：单一《程序设计说明.md》拆分为《数学模型.md》+《程序设计说明.md》双文档；代码层 `src/physics/` + `src/sensors/measured.ts` 合并迁建 `src/mathmodel/`。
+- 2026-08-12：单一《程序设计说明.md》拆分为《数学模型.md》+《程序设计说明.md》双文档；代码层 `src/physics/` + `src/sensors/measured.ts` 合并迁建 `src/mathmodel/`（2026-10-01 改现名 `src/model/`）。
 - 2026-08-13：实验部分定位由"事后验证"调整为"实验建模"（实验是建模的有机环节，三类九项重排编号）。
 - 2026-09-30：**双文档基准制度升级为 SDD 文档体系**——两份设计基准文档内容迁入 `specs/`（本路线图 + 宪章 + 功能规约），原文归档 `archive/docs/legacy/`；此后任何功能变更先改对应 feature 规约三件套，再实现。
-- 2026-10-01：**文档体系与代码按模型层/前端层两分维护**——功能规约迁入 `features/model/`（01–05、09、12、13）与 `features/ui/`（06、07、08、10），NN 编号不变；判定规则"能否脱离浏览器运行 / 是否与实车共享"。代码侧同步迁移（`src/mathmodel/`→`src/model/`、新建 `src/ui/`），见 CHANGELOG。
+- 2026-10-01：**文档体系与代码按模型层/前端层两分维护**——功能规约迁入 `features/model/`（01–05、09、12、13）与 `features/ui/`（06、07、08、10），NN 编号不变；判定规则"能否脱离浏览器运行 / 是否与实车共享"。代码侧同步迁移（`src/model/`→`src/model/`、新建 `src/ui/`），见 CHANGELOG。

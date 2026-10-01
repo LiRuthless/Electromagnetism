@@ -15,7 +15,7 @@
    `电磁场建模仿真工具.exe`），然后用 `--prepackaged` 跳过打包阶段。
 3. **单次 Bash 300s 限制**：7z 正常压缩约 5 分钟，前台一次跑不完。解法：先单独让
    electron-builder 生成 `release/my-app-0.1.0-x64.nsis.7z`（超时被杀也没关系，
-   7z 写完即落盘），再用 `scripts/finish-portable.cjs` 复现 makensis 调用组装最终 exe。
+   7z 写完即落盘），再用 `scripts/ui/finish-portable.cjs` 复现 makensis 调用组装最终 exe。
 
 ## 标准流程
 
@@ -43,8 +43,8 @@ cd ../..
 ./node_modules/.bin/electron-builder --prepackaged release/win-unpacked --win portable || true
 
 # 4. 复现 makensis 组装最终 exe（复用上一步的 7z + builder-debug.yml）
-python scripts/extract-nsi.py   # 从 builder-debug.yml 提取 portable.nsi
-node scripts/finish-portable.cjs
+python scripts/ui/extract-nsi.py   # 从 builder-debug.yml 提取 portable.nsi
+node scripts/ui/finish-portable.cjs
 
 # 5. 复制到工作目录根并清理中间产物
 cp "release/电磁场建模仿真工具 0.1.0.exe" "E:/study/Electromagnetism/电磁场建模仿真工具 0.1.0.exe"
