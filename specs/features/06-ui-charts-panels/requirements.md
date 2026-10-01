@@ -14,8 +14,8 @@
 - **FR-3 绘制内容** ✅：热力图（turbo 色标用于 |B|，发散蓝-黑-红色标用于 Bz/Bx 带符号分量）+ marching squares 等值线 + 赛道线 + 车体/电感叠加（电感按真实 Ø6mm 绘制）。
 - **FR-4 悬停探针** ✅：显示该点 Bx/By/Bz/|B|；悬停在赛道线 <10 mm 时提示真实线径（0.5 mm）。
 - **FR-5 视图交互** ✅：滚轮缩放（zoom to cursor）、中键或空格+拖拽平移；视图状态（缩放/平移）参与持久化（`specs/features/07-persistence-export/`）。
-- **FR-6 循迹叠加** ✅：绘制小车轨迹线（一圈，闭环赛道时仅一圈）、当前位姿车框、电感位置、冲线点/失控点标记；车框朝向约定见 `specs/features/03-sensor-model/requirements.md`（ψ 符号约定）。
-- **FR-7 转角刻度叠加** ✅：几何约定（转角判定、300 mm 标尺与截断规则）见 `specs/features/01-track-geometry/requirements.md`。画布右下角"转角刻度"开关独立控制（默认开，会话内状态，不参与持久化）；刻度随视图缩放平移联动，不遮挡段长标注；由 `mathmodel/track.ts cornerRulers()` 计算顶点与两侧切向/段长截断，`FieldCanvas.tsx` 叠加层绘制。
+- **FR-6 循迹叠加** ✅：绘制小车轨迹线（一圈，闭环赛道时仅一圈）、当前位姿车框、电感位置、冲线点/失控点标记；车框朝向约定见 [`specs/features/03-sensor-model/requirements.md`](../03-sensor-model/requirements.md)（ψ 符号约定）。
+- **FR-7 转角刻度叠加** ✅：几何约定（转角判定、300 mm 标尺与截断规则）见 [`specs/features/01-track-geometry/requirements.md`](../01-track-geometry/requirements.md)。画布右下角"转角刻度"开关独立控制（默认开，会话内状态，不参与持久化）；刻度随视图缩放平移联动，不遮挡段长标注；由 `mathmodel/track.ts cornerRulers()` 计算顶点与两侧切向/段长截断，`FieldCanvas.tsx` 叠加层绘制。
 - 画布侧还呈现自由铺设交互（笔尖显示、圆弧虚影、CAD 动态输入框）；铺设语义与几何构造属 `specs/features/01-track-geometry/`。
 
 ### 面板体系
@@ -62,11 +62,11 @@
 
 ## 技术约束
 
-- **TC-1 技术选型**：折线图（读数剖面/全程扫描/循迹轨迹电感值/Err(t)/轮速(t)）为纯 SVG 自绘；recharts 2.15.4 仅用于实测标定对比预览图；面板调宽用 react-resizable-panels 4.2.2；图标 lucide-react。版本锁定见 `specs/techstack.md`。
-- **TC-2 分层纪律**：本功能全部代码属交互层（`src/components/`、`src/pages/Home.tsx`），禁止向 `src/mathmodel/` 纯计算层引入 UI/React/DOM 依赖（`specs/techstack.md` 硬性约束 2）。
-- **TC-3 持久化纪律**：`floatingCharts`、`leftCollapsed` 走 appState（schema 版本纪律见 `specs/techstack.md` 硬性约束 3，当前 v6）；面板宽度布局走独立 key `em-field-studio/panel-layout`（无版本号，损坏只回退默认宽度）；分区折叠、右侧栏收起、转角刻度开关为会话内状态，不持久化。
-- **TC-4 显示单位**：内部计算 SI 单位，界面显示 mm / Vpp（`specs/techstack.md` 硬性约束 1）。
-- **TC-5 验证门槛**：本功能改动须 `npm run build` 通过 + `scripts/screenshot.cjs` 四场景截图目检无溢出（见 validation.md）；不得破坏三组物理自检（回归）。
+- **TC-1 技术选型**：折线图（读数剖面/全程扫描/循迹轨迹电感值/Err(t)/轮速(t)）为纯 SVG 自绘；recharts 2.15.4 仅用于实测标定对比预览图；面板调宽用 react-resizable-panels 4.2.2；图标 lucide-react。版本锁定见 [`specs/techstack.md`](../../techstack.md)。
+- **TC-2 分层纪律**：本功能全部代码属交互层（`src/components/`、`src/pages/Home.tsx`），禁止向 `src/mathmodel/` 纯计算层引入 UI/React/DOM 依赖（[`specs/techstack.md`](../../techstack.md) 硬性约束 2）。
+- **TC-3 持久化纪律**：`floatingCharts`、`leftCollapsed` 走 appState（schema 版本纪律见 [`specs/techstack.md`](../../techstack.md) 硬性约束 3，当前 v6）；面板宽度布局走独立 key `em-field-studio/panel-layout`（无版本号，损坏只回退默认宽度）；分区折叠、右侧栏收起、转角刻度开关为会话内状态，不持久化。
+- **TC-4 显示单位**：内部计算 SI 单位，界面显示 mm / Vpp（[`specs/techstack.md`](../../techstack.md) 硬性约束 1）。
+- **TC-5 验证门槛**：本功能改动须 `npm run build` 通过 + `scripts/screenshot.cjs` 四场景截图目检无溢出（见 [`validation.md`](validation.md)）；不得破坏三组物理自检（回归）。
 - **TC-6 交互共存**：缩放（框选/平移）、浮动（标题栏拖拽）、点击联动三类指针交互在同一图表上共存，须以位移阈值与修饰键区分，不得互相阻塞。
 
 ## 接口约定

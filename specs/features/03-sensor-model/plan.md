@@ -8,18 +8,18 @@
 
 ## 背景与依据
 
-- 关联宪章：`specs/mission.md`——愿景"可视、可算、可验证"中电感响应是"磁场分布 → 循迹控制"链条的关键环节；范围内明确包含"电感响应建模、布局编辑、贴线锚点标定与全程扫描"。
-- 关联宪章：`specs/techstack.md`——硬性约束 1（SI 单位内部计算，界面显示 mm / Vpp）、硬性约束 2（`src/mathmodel/` 纯计算层）、测试策略（物理正确性自检 + 数值自洽 + 回归防护）。
-- 前置条件：Phase 1 赛道几何模型（中线采样 `samplePath()` / `pointAtLength()` / `nearestOnPath()`，见 `specs/features/01-track-geometry/`）；Phase 2 磁场计算（单点磁场 `computeB()`，式 (5.1)(5.2) 与解析对照式 (5.5)，见 `specs/features/02-magnetic-field/`）。
+- 关联宪章：[`specs/mission.md`](../../mission.md)——愿景"可视、可算、可验证"中电感响应是"磁场分布 → 循迹控制"链条的关键环节；范围内明确包含"电感响应建模、布局编辑、贴线锚点标定与全程扫描"。
+- 关联宪章：[`specs/techstack.md`](../../techstack.md)——硬性约束 1（SI 单位内部计算，界面显示 mm / Vpp）、硬性约束 2（`src/mathmodel/` 纯计算层）、测试策略（物理正确性自检 + 数值自洽 + 回归防护）。
+- 前置条件：Phase 1 赛道几何模型（中线采样 `samplePath()` / `pointAtLength()` / `nearestOnPath()`，见 `specs/features/01-track-geometry/`）；Phase 2 磁场计算（单点磁场 `computeB()`，式 [(5.1)](../02-magnetic-field/requirements.md#eq-5-1)[(5.2)](../02-magnetic-field/requirements.md#eq-5-2) 与解析对照式 [(5.5)](../02-magnetic-field/requirements.md#eq-5-5)，见 `specs/features/02-magnetic-field/`）。
 - 建模前提（假设 4，点探头近似）：6×8 工字电感（Ø6 mm × 高 10 mm）按几何中心点采样磁场。*理由*：电感直径远小于典型探测距离（≥ 20 mm），探头体积内的磁场梯度对平均值的修正为高阶小量。
-- 实验建模配套（🧪 待实操，见 `specs/research/2026-08-13-experiment-modeling.md`）：实验 1 测定 Vpp_anchor（k 的唯一来源）、实验 2 标定线性工作区间（式 (6.1) 线性关系的实车边界）、实验 3 标定各电感实际敏感轴方向。
+- 实验建模配套（🧪 待实操，见 [`specs/research/2026-08-13-experiment-modeling.md`](../../research/2026-08-13-experiment-modeling.md)）：实验 1 测定 Vpp_anchor（k 的唯一来源）、实验 2 标定线性工作区间（式 [(6.1)](requirements.md#eq-6-1) 线性关系的实车边界）、实验 3 标定各电感实际敏感轴方向。
 
 ## 任务分组（Task Groups）
 
 ### Group 1: 响应公式与贴线锚点标定
-- [x] 响应公式 U = k·|B·n̂|（式 (6.1)），ADC 幅值检测取绝对值
-- [x] 贴线锚点几何 d_touch = 3.25 mm 与贴线磁场 B_touch ≈ 6.154 μT（式 (6.2)(6.3)）
-- [x] 由 Vpp 锚点反推 k（式 (6.4)），k 不随电流变化、读数随 B 线性缩放
+- [x] 响应公式 U = k·|B·n̂|（式 [(6.1)](requirements.md#eq-6-1)），ADC 幅值检测取绝对值
+- [x] 贴线锚点几何 d_touch = 3.25 mm 与贴线磁场 B_touch ≈ 6.154 μT（式 [(6.2)](requirements.md#eq-6-2)[(6.3)](requirements.md#eq-6-3)）
+- [x] 由 Vpp 锚点反推 k（式 [(6.4)](requirements.md#eq-6-4)），k 不随电流变化、读数随 B 线性缩放
 - [x] 自检 selfcheck [10]：标定自洽 < 0.05%、严格 2× 线性缩放、cosθ 方向性精确 0.5
 
 （实际实现日期：2026-07-24 随 JS/Electron 初版落地；2026-08-12 迁入 `src/mathmodel/sensor.ts`。）
@@ -32,15 +32,15 @@
 （实际实现日期：布局编辑 2026-07-24 初版；敏感轴水平化 2026-07-31；默认 4 电感布局 2026-08-03。）
 
 ### Group 3: 车体位姿与坐标变换
-- [x] `CarPose` 位姿定义（中线参考点 + 单位切向 + e + ψ）与 `poseFrame()` 三轴（式 (6.5)(6.6)）
-- [x] 电感世界坐标与敏感轴世界向量变换 `sensorWorld()` / `sensorAxisWorld()`（式 (6.7)(6.8)）
-- [x] ψ 符号约定明确（式 (6.9)）并修复转弯时车体朝向镜像反转缺陷
+- [x] `CarPose` 位姿定义（中线参考点 + 单位切向 + e + ψ）与 `poseFrame()` 三轴（式 [(6.5)](requirements.md#eq-6-5)[(6.6)](requirements.md#eq-6-6)）
+- [x] 电感世界坐标与敏感轴世界向量变换 `sensorWorld()` / `sensorAxisWorld()`（式 [(6.7)](requirements.md#eq-6-7)[(6.8)](requirements.md#eq-6-8)）
+- [x] ψ 符号约定明确（式 [(6.9)](requirements.md#eq-6-9)）并修复转弯时车体朝向镜像反转缺陷
 - [x] 位姿来源切换：手动位姿 / 跟随仿真轨迹（`nearestOnPath()` + `signedLateralDistance()` 反算 s/e/ψ 只读显示）
 
 （实际实现日期：坐标变换 2026-07-24 初版；位姿来源切换 2026-08-02；朝向修复与 ψ 约定明确 2026-08-03。）
 
 ### Group 4: 全程扫描与轨迹读数
-- [x] 全程扫描 `sweepAlongTrack()`：固定 e/ψ，s = 0 → 全长（默认 10 mm 步进），逐点按式 (6.1) 求各电感 U(s)
+- [x] 全程扫描 `sweepAlongTrack()`：固定 e/ψ，s = 0 → 全长（默认 10 mm 步进），逐点按式 [(6.1)](requirements.md#eq-6-1) 求各电感 U(s)
 - [x] 实测版扫描 `sweepMeasuredAlongTrack()`：电感世界坐标换算有符号横向距离 d 交实测模型求值，无数据通道回退仿真公式并加 `*` 标注
 - [x] 循迹轨迹电感值数据直接取循迹仿真结果 `TrackingResult.sensorU`（横轴 t / 弧长 s，无新增物理计算）
 
@@ -59,9 +59,9 @@ Group 1（响应与标定）依赖 Phase 2 的单点磁场计算；Group 2（布
 
 ## 风险与取舍
 
-- **取绝对值丢相位信息**：ADC 幅值检测不分辨相位，式 (6.1) 只反映 |B| 沿敏感轴的投影大小；磁场方向信息由多电感布局组合恢复（取舍：硬件简单，代价是单电感无方向性）。
-- **标定采用无限长近似**：B_touch 按式 (5.5) 无限长直导线解析解取值，而非有限长闭式解——端部修正为 ~ρ/L 量级，与 20 m 直导线闭式反推的相对差 ~3e-5（< 0.05%，自检 [10] 验证），可忽略。
-- **Vpp_anchor 理论无法预知**：取决于实车"电感 + 检波放大链路"实际增益，默认 6 V 仅为先验值，须由实验 1 实测回填（🧪 待实操，见 `specs/research/2026-08-13-experiment-modeling.md`）。
+- **取绝对值丢相位信息**：ADC 幅值检测不分辨相位，式 [(6.1)](requirements.md#eq-6-1) 只反映 |B| 沿敏感轴的投影大小；磁场方向信息由多电感布局组合恢复（取舍：硬件简单，代价是单电感无方向性）。
+- **标定采用无限长近似**：B_touch 按式 [(5.5)](../02-magnetic-field/requirements.md#eq-5-5) 无限长直导线解析解取值，而非有限长闭式解——端部修正为 ~ρ/L 量级，与 20 m 直导线闭式反推的相对差 ~3e-5（< 0.05%，自检 [10] 验证），可忽略。
+- **Vpp_anchor 理论无法预知**：取决于实车"电感 + 检波放大链路"实际增益，默认 6 V 仅为先验值，须由实验 1 实测回填（🧪 待实操，见 [`specs/research/2026-08-13-experiment-modeling.md`](../../research/2026-08-13-experiment-modeling.md)）。
 - **敏感轴以水平面内为主**（2026-07-31 设计决定）：x / y 预设在水平面内，z（竖直感 Bz）保留可用，custom 支持任意向量；各电感实际敏感轴方向由绕制与安装决定，与预设不符时以实验 3 实测方向为准更新布局。
 - **默认布局变更只影响初始状态与"恢复默认"**：已有用户 localStorage 中保存的布局不受影响（2026-08-03 改为预设 4 电感时的既定取舍，不引 appState schema 变化）。
 - **明确排除**：不对探头体积做磁场积分平均（点探头近似下为高阶小量，假设 4）；不在程序内自动辨识敏感轴方向（由实验 3 人工测定后回填布局）。

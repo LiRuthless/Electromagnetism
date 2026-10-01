@@ -6,12 +6,12 @@
 
 | # | 检查项 | 方法 | 通过标准 | 关联需求 |
 |---|---|---|---|---|
-| V-1 | 段序列几何递推（式 (4.1)(4.2)） | `npm run selfcheck` 测试 [4] | 半圆（180°，R=0.5m）采样弧长 = πR，误差 < 1%；`segmentLength()` 与 πR 精确一致（< 1e-12）；笔尖终点与采样终点偏差 < 10 mm | FR-3, FR-5 |
+| V-1 | 段序列几何递推（式 [(4.1)](requirements.md#eq-4-1)[(4.2)](requirements.md#eq-4-2)） | `npm run selfcheck` 测试 [4] | 半圆（180°，R=0.5m）采样弧长 = πR，误差 < 1%；`segmentLength()` 与 πR 精确一致（< 1e-12）；笔尖终点与采样终点偏差 < 10 mm | FR-3, FR-5 |
 | V-2 | 离散化粒度（MAX_DS = 1 cm） | `npm run selfcheck` 前置检查 + 测试 [4] | 4 m 直道离散段数 = 400；自由铺设样例最大电流元 ≤ 10 mm；段长合计与采样总长偏差 < 0.5% | FR-4, FR-5 |
 | V-3 | 弯道 / 十字 / 六边形离散化与场值合理性 | `npm run selfcheck` 测试 [3] | 各形状场值有限、非零、量级合理（1e-7 < \|B\| < 1e-3，几何真值对照） | FR-4, FR-7 |
 | V-4 | 正六边形环岛几何真值 | `npm run selfcheck` 测试 [6] | 段序列 = 6 条直线边；入环边偏转 ±30°；六边方向 = {±30°,±90°,±150°} 且无边与直线共线；中心在环侧、距入环顶点 = 边长 a；周长 = 6a（误差 < 1%）；终点闭合误差 < 1e-6 mm；出环航向恢复偏差 < 1e-9 rad；场模型 = 6 条闭式直线段 + 0 离散元；中心 Bz 引擎 vs 6 边独立复算 < 1e-9 | FR-7 |
 | V-5 | 尖角区域场值（尖角建模） | `npx tsx scripts/test-corner.ts` | L 形赛道（两段 1 m 直线尖角相连）以闭式解叠加为真值；现行场引擎（直线段闭式）各测点误差为双精度机器量级（汇总行指数级小量） | FR-3, FR-4 |
-| V-6 | 闭环几何（式 (4.3)） | `npm run selfcheck:tracking` 测试 [5] 几何项 | 单位正方形 `closureGapM()` ≈ 0 且 `canCloseTrack()` 成立；缺一边（终点距起点 1 m）不可闭环；近闭环（缝隙 10 mm）可闭环，吸合段计入中线总长 3.99 + 0.01 = 4.00 m；闭环离散化包含吸合段电流元（一圈完赛判据属 `specs/features/05-tracking-control/validation.md`） | FR-6 |
+| V-6 | 闭环几何（式 [(4.3)](requirements.md#eq-4-3)） | `npm run selfcheck:tracking` 测试 [5] 几何项 | 单位正方形 `closureGapM()` ≈ 0 且 `canCloseTrack()` 成立；缺一边（终点距起点 1 m）不可闭环；近闭环（缝隙 10 mm）可闭环，吸合段计入中线总长 3.99 + 0.01 = 4.00 m；闭环离散化包含吸合段电流元（一圈完赛判据属 [`specs/features/05-tracking-control/validation.md`](../05-tracking-control/validation.md)） | FR-6 |
 | V-7 | 铺设交互 | 人工步骤 1–3 | 见"人工验证步骤"预期现象 | FR-9, FR-10, FR-11, FR-12 |
 | V-8 | 闭环勾选 UI | 人工步骤 4 | 实时距离显示；≤ 20 mm 可勾选；> 20 mm 置灰提示；勾选后段被改超阈值自动取消 | FR-6, FR-14 |
 | V-9 | 转角刻度 | 人工步骤 5 | 300 mm 标尺（100 mm 分度）、短段截断、圆弧侧切线直标尺、开关默认开且不持久化、随视图联动不遮挡段长标注 | FR-8, FR-17, FR-18 |
@@ -53,7 +53,7 @@ npm run build                     # 类型检查 + 构建 dist 通过
 ## 回归检查
 
 - `npm run build` 通过；三组自检（`selfcheck` / `selfcheck:measured` / `selfcheck:tracking`）与 `scripts/test-*`（appState 持久化、状态恢复、扫描、尖角、Worker）全部保持通过。
-- 式 (4.1)(4.2)(4.3) 的编号与 LaTeX 表述不得改动——`em-field-studio` 与 `matlab-simulink/` 代码注释引用这些编号（TC-3）。
+- 式 [(4.1)](requirements.md#eq-4-1)[(4.2)](requirements.md#eq-4-2)[(4.3)](requirements.md#eq-4-3) 的编号与 LaTeX 表述不得改动——`em-field-studio` 与 `matlab-simulink/` 代码注释引用这些编号（TC-3）。
 - `TrackDef` 结构与赛道 JSON 格式向后兼容（含 `closed` 与 `extraWires` 字段）：旧 appState v6 存档与旧赛道 JSON 可正常载入（`specs/features/07-persistence-export/`）。
-- 闭环赛道循迹仅一圈（05-tracking-control 式 (8.10)）不受影响；`createNearestSeeker()` 的有符号横向偏差约定（右正）不变。
+- 闭环赛道循迹仅一圈（05-tracking-control 式 [(8.10)](../05-tracking-control/requirements.md#eq-8-10)）不受影响；`createNearestSeeker()` 的有符号横向偏差约定（右正）不变。
 - 转角刻度开关"默认开、会话内不持久化"语义不变；段长标注等编辑/铺设工具状态仍随 appState 持久化。

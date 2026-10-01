@@ -11,7 +11,7 @@
 | V-5 | CSV 兼容性 | 同上（BOM + 分号 + `e(mm)` 表头；及仅 2 有效点文件） | BOM/分号正确解析，e(mm) 保持 mm 不换算；有效点 < 3 抛中文错误（"有效采样点不足"） | FR-1 |
 | V-6 | 有符号横向距离 d 符号约定 | 同上（4 m 直道沿 +y） | 右侧 (100, 2000) mm → d ≈ +100 mm；左侧 → d ≈ −100 mm（容差 6 mm，含采样插值误差） | FR-2 |
 | V-7 | 构建与全量回归 | `npm run build` + 三组自检 | 全部通过 | 全部 |
-| V-8 | 🧪 实验 6 数据质量判据（实车侧，待实操） | 按 `specs/research/2026-08-13-experiment-modeling.md` 实验 6 采集接口① CSV 导入 | 方案A 拟合 R² > 0.95（式 (7.4)）；h_eff 回收值接近实际安装高度且落在 [15, 200] mm；方案B 偏差 \|δ\| 峰值 < 读数峰值的 20%；实验散点与同参数仿真全程扫描曲线同图对比，峰值位置与两翼衰减形态一致；不达标重采 | FR-3, FR-4 |
+| V-8 | 🧪 实验 6 数据质量判据（实车侧，待实操） | 按 [`specs/research/2026-08-13-experiment-modeling.md`](../../research/2026-08-13-experiment-modeling.md) 实验 6 采集接口① CSV 导入 | 方案A 拟合 R² > 0.95（式 [(7.4)](requirements.md#eq-7-4)）；h_eff 回收值接近实际安装高度且落在 [15, 200] mm；方案B 偏差 \|δ\| 峰值 < 读数峰值的 20%；实验散点与同参数仿真全程扫描曲线同图对比，峰值位置与两翼衰减形态一致；不达标重采 | FR-3, FR-4 |
 
 ## 自动化验证
 
@@ -23,7 +23,7 @@
 | `npm run build` | 类型检查 + 构建通过 |
 | `npm run selfcheck` / `npm run selfcheck:tracking` | 既有两组自检保持全过（本功能不得破坏，见回归检查） |
 
-改 `src/mathmodel/measured.ts` 任何公式/默认值/参数（网格范围 [15,200]×[−40,40]、60 档、有效点阈值 3 等）后：三组自检 + `npm run build` 全过才可回填本规约状态标记（`specs/techstack.md` 测试纪律）。
+改 `src/mathmodel/measured.ts` 任何公式/默认值/参数（网格范围 [15,200]×[−40,40]、60 档、有效点阈值 3 等）后：三组自检 + `npm run build` 全过才可回填本规约状态标记（[`specs/techstack.md`](../../techstack.md) 测试纪律）。
 
 ## 人工验证步骤
 
@@ -37,7 +37,7 @@
 
 ## 回归检查
 
-- 数据源为"仿真模型"时，读数剖面、全程扫描、循迹仿真行为与读数不变（式 (6.1)，见 `specs/features/03-sensor-model/validation.md` 与 `specs/features/05-tracking-control/validation.md`）。
+- 数据源为"仿真模型"时，读数剖面、全程扫描、循迹仿真行为与读数不变（式 [(6.1)](../03-sensor-model/requirements.md#eq-6-1)，见 [`specs/features/03-sensor-model/validation.md`](../03-sensor-model/validation.md) 与 [`specs/features/05-tracking-control/validation.md`](../05-tracking-control/validation.md)）。
 - 方案B 基准随电感高度 h、敏感轴、电流 I、标定 k 联动——改动标定 Vpp 或电流后实测物理+偏差读数应相应变化。
-- appState `APP_STATE_VERSION = 6` 不变；旧存档（无 `measured` 字段）无损加载（`specs/features/07-persistence-export/validation.md`）。
+- appState `APP_STATE_VERSION = 6` 不变；旧存档（无 `measured` 字段）无损加载（[`specs/features/07-persistence-export/validation.md`](../07-persistence-export/validation.md)）。
 - `npm run selfcheck`、`npm run selfcheck:tracking`、`scripts/test-*` 全部保持通过；`npm run build` 通过。

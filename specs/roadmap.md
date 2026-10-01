@@ -53,7 +53,7 @@
 ### Phase 10: 实车循迹日志对比视图 `10-vehicle-log-compare`
 - [ ] 导入实车循迹日志 CSV（接口④），与仿真轨迹 Err(t)/轮速(t)/电感 U(t) 曲线叠加对照
 - 规模：small
-- 前置依赖：实验 9 产出的实车日志数据（见 `specs/research/2026-08-13-experiment-modeling.md`）
+- 前置依赖：实验 9 产出的实车日志数据（见 [`specs/research/2026-08-13-experiment-modeling.md`](research/2026-08-13-experiment-modeling.md)）
 - 功能规约：`specs/features/10-vehicle-log-compare/`（骨架已建，待数据到位后访谈补全）
 
 ### Phase 11: SerialSource 串口直采 `11-serial-source`
@@ -64,7 +64,7 @@
 ## 当前状态
 
 - 已完成：Phase 01–09（电磁场建模仿真工具 0.1.0，2026-08-15 版 exe 已发布；Simulink 移植 2026-09 落地）
-- 进行中：无代码阶段——等待用户执行实验建模（`specs/research/2026-08-13-experiment-modeling.md`，🧪 三类九项实验，按实验 1→2→3→6/7→4/5→8/9 依赖顺序）
+- 进行中：无代码阶段——等待用户执行实验建模（[`specs/research/2026-08-13-experiment-modeling.md`](research/2026-08-13-experiment-modeling.md)，🧪 三类九项实验，按实验 1→2→3→6/7→4/5→8/9 依赖顺序）
 - 下一步：Phase 10（待实验 9 数据到位）；Phase 11 仍为预留方向
 
 ## 已合并/已取消的计划

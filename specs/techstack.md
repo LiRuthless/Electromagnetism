@@ -16,7 +16,7 @@
 | UI 框架 | react / react-dom | 19.2.3 | 主界面 |
 | 构建 | vite + @vitejs/plugin-react | 7.3.0 | 开发服务器与 dist 构建 |
 | 桌面壳 | electron | 43.2.0 | Windows 便携版载体 |
-| 打包 | electron-builder | 26.15.3 | portable 目标，离线流程见 `em-field-studio/BUILD-EXE.md` |
+| 打包 | electron-builder | 26.15.3 | portable 目标，离线流程见 [`em-field-studio/BUILD-EXE.md`](../em-field-studio/BUILD-EXE.md) |
 | 样式 | tailwindcss + tailwindcss-animate | 3.4.19 | 原子化样式 |
 | 组件基元 | @radix-ui/react-* | ^1.x/^2.x（各包） | shadcn 风格通用组件（`src/components/ui/`） |
 | 面板调宽 | react-resizable-panels | 4.2.2 | 左右面板拖拽调宽 |
@@ -42,7 +42,7 @@
 |---|---|
 | `npm run dev` | Vite 开发服务器（预览） |
 | `npm run build` | 类型检查 + 构建 dist（"预览版"到此为止） |
-| `npm run dist:win` | 打 Windows 便携 exe——**必须经用户确认后执行**，本机离线流程见 `BUILD-EXE.md` |
+| `npm run dist:win` | 打 Windows 便携 exe——**必须经用户确认后执行**，本机离线流程见 [`BUILD-EXE.md`](../em-field-studio/BUILD-EXE.md) |
 | `npm run selfcheck` / `selfcheck:measured` / `selfcheck:tracking` | 三组物理/模型自检 |
 | `node_modules/.bin/electron.cmd scripts/screenshot.cjs …` | UI 离屏截图目检工具 |
 
@@ -84,8 +84,8 @@ MATLAB 侧：`matlab-simulink/` 下 `build_all`（一键建模）、`runAll`（�
 | `mathmodel/sensor.ts` | 电感模型：布局、敏感轴、标定 k、车体坐标变换 | `03-sensor-model/`（式 6.x） |
 | `mathmodel/sweep.ts` | 全程扫描：固定 e/ψ 沿赛道扫全程得 U(s) | `03-sensor-model/` |
 | `mathmodel/measured.ts` | 实测数据模型：CSV 导入 + 方案A 拟合 + 方案B 物理偏差校正 | `04-measured-data-model/`（式 7.x） |
-| `mathmodel/control.ts` | 误差公式（递归下降解析无 eval）+ PD + 差速轮速分配 + 电机一阶滞后 | `05-tracking-control/`（式 8.1–8.7） |
-| `mathmodel/kinematics.ts` | 两轮差速运动学 + 循迹闭环轨迹仿真主循环 | `05-tracking-control/`（式 8.8–8.11） |
+| `mathmodel/control.ts` | 误差公式（递归下降解析无 eval）+ PD + 差速轮速分配 + 电机一阶滞后 | `05-tracking-control/`（式 [8.1](features/05-tracking-control/requirements.md#eq-8-1)–[8.7](features/05-tracking-control/requirements.md#eq-8-7)） |
+| `mathmodel/kinematics.ts` | 两轮差速运动学 + 循迹闭环轨迹仿真主循环 | `05-tracking-control/`（式 [8.8](features/05-tracking-control/requirements.md#eq-8-8)–[8.11](features/05-tracking-control/requirements.md#eq-8-11)） |
 | `components/TrackEditor.tsx` | 左侧面板：铺设工具、赛道库、物理参数 | `01` / `06` |
 | `components/FieldCanvas.tsx` | 中央画布：热力图/等值线/车体叠加/铺设交互/循迹轨迹/转角刻度 | `06` |
 | `components/SensorPanel.tsx` | 右侧面板：数据源、实测标定、位姿、读数剖面、全程扫描、布局编辑 | `03` / `04` / `06` |

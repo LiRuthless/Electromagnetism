@@ -10,9 +10,9 @@
 | V-4 | 状态恢复完整往返（空存储 → null；保存后逐字段恢复） | `npx tsx scripts/test-state-restore.ts` | 末行输出"全部通过：状态可以完整保存并恢复"，退出码 0 | FR-1, FR-5 |
 | V-5 | "恢复默认"只清工作状态 key，赛道库不受影响 | `npx tsx scripts/test-appstate.ts` [E] 组 | `clearAppState()` 后 app-state 已清除，`em-field-studio/track-library` 内容不变 | FR-7, FR-8 |
 | V-6 | 防抖 300 ms 自动保存 | 人工 | 改动任一状态后约 0.3 s 内写入 localStorage；刷新页面后状态完整恢复 | FR-4 |
-| V-7 | 六项导出文件格式核对 | 人工（见下） | 各文件列/表头注释/BOM 与 requirements.md 导出表一致；JSON 导出 → 导入互逆 | FR-9, TC-4, TC-5 |
+| V-7 | 六项导出文件格式核对 | 人工（见下） | 各文件列/表头注释/BOM 与 [`requirements.md`](requirements.md) 导出表一致；JSON 导出 → 导入互逆 | FR-9, TC-4, TC-5 |
 | V-8 | panel-layout 独立 key 行为 | 人工 | 拖拽调宽后刷新保持；手动改坏该 key 只回退默认宽度、工作状态不丢；该 key 无版本号 | FR-6, TC-2 |
-| V-9 | 接口① 导入链路 | 引用 `specs/features/04-measured-data-model/validation.md`（selfcheck:measured 与人工导入核对） | 标定状态随 appState 持久化（刷新后仍在） | FR-10 |
+| V-9 | 接口① 导入链路 | 引用 [`specs/features/04-measured-data-model/validation.md`](../04-measured-data-model/validation.md)（selfcheck:measured 与人工导入核对） | 标定状态随 appState 持久化（刷新后仍在） | FR-10 |
 | V-10 | 接口② 循迹轨迹 CSV 与接口④ 约定同构 | 人工列核对 | 列序 `t,x,y,θ,v_L,v_R,Err,各电感U` 与接口④ 约定一致，可作对照基准 | FR-11, FR-13 |
 
 ## 自动化验证
@@ -41,7 +41,7 @@ npm run build                           # 类型检查 + 构建
    - 画布 PNG：图像与当前画布视图一致（热力图/等值线/赛道线/车体叠加）。
    - 赛道 JSON：含 `name`/`segments`（闭环赛道含 `closed: true`）；重新导入后赛道形状与闭环标志一致（互逆）。电感布局 JSON：电感数组，重新导入后布局一致。
    - 循迹轨迹 CSV：列 `t(s),x(m),y(m),theta(rad),v_L(m/s),v_R(m/s),Err,<电感名>_U(Vpp),…`，逐时间步一行；注释含结果状态/步数/用时/弧长/公式与全部循迹参数；与接口④ 约定列序同构（V-10）。
-7. **接口① 持久化**：导入实测标定 CSV（实验 6 格式）后刷新页面——预期标定状态（数据集 + 拟合结果）仍在，数据源选择保持（详见 `specs/features/04-measured-data-model/validation.md`）。
+7. **接口① 持久化**：导入实测标定 CSV（实验 6 格式）后刷新页面——预期标定状态（数据集 + 拟合结果）仍在，数据源选择保持（详见 [`specs/features/04-measured-data-model/validation.md`](../04-measured-data-model/validation.md)）。
 
 ## 回归检查
 

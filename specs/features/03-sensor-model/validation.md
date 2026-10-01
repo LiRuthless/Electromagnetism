@@ -11,7 +11,7 @@
 | V-3 | cosθ 方向性 | `npm run selfcheck`（selfcheck [10] d） | 同一 B 场下敏感轴绕垂直于 B 的轴转 60°，读数比 = cos60° 精确等于 0.5（偏差 < 1e-9） | FR-1, FR-4 |
 | V-4 | 全程扫描曲线形态 | `npx tsx scripts/test-sweep.ts` | [A] 8 m 直道（e = ψ = 0）：中段（2–6 m，排除端部效应）各电感波动 < 1%，感 By 主对（L1/R1）读数恒 0（直导线无纵向分量）；8 m 扫描耗时 < 300 ms。[B] 1 m 直线 + 90° 弧（r = 0.5 m）+ 1 m 直线：弯道区特征起伏（摆幅最强曲线 max/min > 1.3），峰值位于弯道附近（700–2100 mm） | FR-8 |
 | V-5 | 默认布局与恢复默认 | 人工操作 | 顶栏"恢复默认"后电感布局 = FR-5 默认 4 电感表（L1/R1/L2/R2，y = 80 mm，h = 75 mm），与工作区 `archive/presets/sensor-layout.json` 等价 | FR-5 |
-| V-6 | ψ 符号约定回归 | `npm run selfcheck:tracking`（[6] 朝向约定回归） | 式 (6.9) 约定全过：含 θ 连续累积超 ±π 与 S 弯逐步重建一致性 | FR-7, FR-14 |
+| V-6 | ψ 符号约定回归 | `npm run selfcheck:tracking`（[6] 朝向约定回归） | 式 [(6.9)](requirements.md#eq-6-9) 约定全过：含 θ 连续累积超 ±π 与 S 弯逐步重建一致性 | FR-7, FR-14 |
 | V-7 | 位姿滑块与数值键入 | 人工操作 | 拖 s/e/ψ 滑块车框与读数实时刷新、方向符合约定；点数值键入精确值，越界钳位到滑块量程 | FR-11 |
 | V-8 | 标定 Vpp 调整 | 人工操作 | 拖 5–7 V 滑块，反推 k 显示同步更新、各电感读数随 Vpp 线性缩放；当前值可键入 | FR-12 |
 | V-9 | 布局增删改与 JSON 互逆 | 人工操作 | 增 / 删 / 改即时生效于读数与画布叠加；导出布局 JSON → 改乱布局 → 导入后完全还原 | FR-13 |
@@ -21,9 +21,9 @@
 在 `em-field-studio/` 下执行：
 
 - `npm run selfcheck` —— 物理正确性自检全部通过，其中 selfcheck [10]（电感标定审计）覆盖 V-1 / V-2 / V-3：标定自洽 < 0.05%、严格 2× 线性缩放、cosθ 方向性精确 0.5。
-- `npm run selfcheck:tracking` —— 其中 [6] 朝向约定回归覆盖 V-6（式 (6.9)，含 θ 连续累积超 ±π 与 S 弯逐步重建一致性）。
+- `npm run selfcheck:tracking` —— 其中 [6] 朝向约定回归覆盖 V-6（式 [(6.9)](requirements.md#eq-6-9)，含 θ 连续累积超 ±π 与 S 弯逐步重建一致性）。
 - `npx tsx scripts/test-sweep.ts` —— 扫描形态自检覆盖 V-4（直道中段恒定 / 弯道特征起伏 / 耗时 < 300 ms；该脚本不进 `npm run selfcheck`，须单独运行）。
-- `npm run build` —— 类型检查 + 构建通过（改 `src/mathmodel/` 任何公式 / 默认值后，三组自检 + build 全过才可回填规约状态标记，见 `specs/techstack.md` 测试策略）。
+- `npm run build` —— 类型检查 + 构建通过（改 `src/mathmodel/` 任何公式 / 默认值后，三组自检 + build 全过才可回填规约状态标记，见 [`specs/techstack.md`](../../techstack.md) 测试策略）。
 
 ## 人工验证步骤
 
@@ -35,8 +35,8 @@
 
 ## 回归检查
 
-- 不改磁场计算（`specs/features/02-magnetic-field/`，式 (5.1)(5.2)(5.5)）与赛道几何（`specs/features/01-track-geometry/`）：`computeB` / 路径采样接口签名不变。
-- 默认布局电感名 L1/R1/L2/R2 被默认误差公式引用（`specs/features/05-tracking-control/requirements.md` 式 (8.1)）——布局改名或删减时误差公式须可解析或回退，不得产生 NaN 轨迹。
+- 不改磁场计算（`specs/features/02-magnetic-field/`，式 [(5.1)](../02-magnetic-field/requirements.md#eq-5-1)[(5.2)](../02-magnetic-field/requirements.md#eq-5-2)[(5.5)](../02-magnetic-field/requirements.md#eq-5-5)）与赛道几何（`specs/features/01-track-geometry/`）：`computeB` / 路径采样接口签名不变。
+- 默认布局电感名 L1/R1/L2/R2 被默认误差公式引用（[`specs/features/05-tracking-control/requirements.md`](../05-tracking-control/requirements.md) 式 [(8.1)](../05-tracking-control/requirements.md#eq-8-1)）——布局改名或删减时误差公式须可解析或回退，不得产生 NaN 轨迹。
 - 电感布局、车体位姿（含 poseSource / trajT）、标定 Vpp 的 appState v6 持久化字段兼容（`specs/features/07-persistence-export/`）：旧存档无损加载，非法字段逐字段回退默认值，绝不崩溃。
-- 实测数据源下无数据通道回退仿真公式 (6.1) 且通道名加 `*` 标注（`specs/features/04-measured-data-model/`）。
-- 循迹闭环读数链路不受影响：Err 计算所用电感值仍是车体在仿真轨迹实际位姿处按式 (6.1) 读到的值（`specs/features/05-tracking-control/`）。
+- 实测数据源下无数据通道回退仿真公式 [(6.1)](requirements.md#eq-6-1) 且通道名加 `*` 标注（`specs/features/04-measured-data-model/`）。
+- 循迹闭环读数链路不受影响：Err 计算所用电感值仍是车体在仿真轨迹实际位姿处按式 [(6.1)](requirements.md#eq-6-1) 读到的值（`specs/features/05-tracking-control/`）。

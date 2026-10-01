@@ -13,8 +13,8 @@
 
 ## 背景与依据
 
-- 使命关联（`specs/mission.md`）：本功能是"可视、可算、可验证"中**可视**的主体——磁场分布、电感读数、循迹结果均经本界面体系呈现，是调参与方案验证的人机入口。
-- 技术约束（`specs/techstack.md`）：React 19 + TypeScript 严格模式 + Tailwind；折线图纯 SVG 自绘（recharts 仅用于实测对比预览图）；面板调宽用 react-resizable-panels 4.2.2；三枚 localStorage key 分工（app-state v6 / panel-layout / track-library）；appState schema 纪律与"回退不崩溃"为硬性约束。
+- 使命关联（[`specs/mission.md`](../../mission.md)）：本功能是"可视、可算、可验证"中**可视**的主体——磁场分布、电感读数、循迹结果均经本界面体系呈现，是调参与方案验证的人机入口。
+- 技术约束（[`specs/techstack.md`](../../techstack.md)）：React 19 + TypeScript 严格模式 + Tailwind；折线图纯 SVG 自绘（recharts 仅用于实测对比预览图）；面板调宽用 react-resizable-panels 4.2.2；三枚 localStorage key 分工（app-state v6 / panel-layout / track-library）；appState schema 纪律与"回退不崩溃"为硬性约束。
 - 前置条件：Phase 1 赛道几何（画布叠加与转角刻度依赖 `mathmodel/track.ts`）、Phase 2 磁场网格（热力图数据源）、Phase 3 电感读数与全程扫描（折线图数据源）、Phase 5 循迹闭环（轨迹叠加、Err(t)/轮速(t) 曲线与循迹轨迹电感图数据源）。
 - 源依据：归档《程序设计说明.md》§1（界面布局段）、§3.1（面板收起/分区卡片化）、§3.2（画布）、§3.3（面板组织与全程扫描区）、§3.4–§3.8（缩放/浮动化/点击联动/顶栏/UI 组件化改造）。
 
