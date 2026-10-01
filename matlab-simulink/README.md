@@ -3,7 +3,7 @@
 《数学模型.md》§4～§8 模型链条（赛道几何 → 磁场 → 电感响应 → 循迹控制）的
 MATLAB / Simulink 移植，公式与默认值与 `em-field-studio/src/mathmodel/` 逐行对齐。
 本目录公式注释中的"式 (x.y)"编号与 SDD 规约（`specs/features/01`–`05`，原样保留原编号）
-一致；原《数学模型.md》已归档至 `docs/legacy/数学模型.md`，可作全文对照。
+一致；原《数学模型.md》已归档至 `archive/docs/legacy/数学模型.md`，可作全文对照。
 功能规约见 `specs/features/09-matlab-simulink-port/`。
 
 ## 环境

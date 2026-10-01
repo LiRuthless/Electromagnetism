@@ -1,6 +1,6 @@
 # Phase 8: 打包发布与自检体系 — 需求
 
-> ✅ 已实现。关联 plan.md；归档来源：`docs/legacy/程序设计说明.md` §7、`docs/legacy/数学模型.md` §10.1、`em-field-studio/BUILD-EXE.md`。
+> ✅ 已实现。关联 plan.md；归档来源：`archive/docs/legacy/程序设计说明.md` §7、`archive/docs/legacy/数学模型.md` §10.1、`em-field-studio/BUILD-EXE.md`。
 
 ## 功能需求
 
@@ -38,7 +38,7 @@
 
 - **FR-4（本机离线打包标准流程，✅）**：按 `BUILD-EXE.md` 五步执行——① `npm run build` 构建 web 端；② `electron-builder --win portable -c.compression=store -c.electronDist=<本机缓存 zip>` 打包 win-unpacked（rename EPERM 时走 ②b 手工接管）；③ `electron-builder --prepackaged release/win-unpacked --win portable` 生成 7z 归档（约 5 分钟，被杀后 7z 仍已落盘）；④ `python scripts/extract-nsi.py` 从 builder-debug.yml 提取 portable.nsi，`node scripts/finish-portable.cjs` 复现 makensis 调用组装最终 exe；⑤ 复制产物到工作区根并清理中间产物。
 
-- **FR-5（打包产物落点，✅）**：最终产物为 `E:\study\Electromagnetism\电磁场建模仿真工具 0.1.0.exe`（约 90 MB，单文件便携版），每次发布复制覆盖工作区根旧版；发布毕清理 `release/` 中间产物（win-unpacked、win-unpacked.tmp、*.7z、builder-debug.yml、portable*.nsi、0-messages.nsh）。`-c.compression=store` 只影响 win-unpacked 阶段的临时产物；最终 exe 体积由第 ③ 步的 7z 正常压缩决定（约 90 MB）。
+- **FR-5（打包产物落点，✅）**：最终产物为 `E:\study\Electromagnetism\电磁场建模仿真工具 0.1.0.exe`（约 90 MB，单文件便携版），每次发布复制覆盖工作区根旧版；发布毕清理 `release/` 中间产物（win-unpacked、win-unpacked.tmp、*.7z、builder-debug.yml、portable*.nsi、0-messages.nsh）。`-c.compression=store` 只影响 win-unpacked 阶段的临时产物；最终 exe 体积由第 ③ 步的 7z 正常压缩决定（约 90 MB）。**发布渠道（2026-10-01 起）**：产物同时上传 GitHub Releases（exe 不进 git，走 Releases 附件，规避 GitHub 单文件 100MB 限制）；不再保留本地旧版备份（原 `backup/` 做法废止）。
 
 - **FR-6（UI 离屏截图目检工具，✅ 2026-08-15）**：`scripts/screenshot.cjs` 用项目自带 Electron 离屏窗口加载 dist 构建产物并截图，用于面板/界面改造的逐场景目检（用法签名见"接口约定"）；依赖 dist 已构建（先 `npm run build`），截图前等待场计算完成；每次运行独立 userData，互不污染持久化状态。
 

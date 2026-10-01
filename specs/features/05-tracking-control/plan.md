@@ -12,7 +12,7 @@
 - 技术约束（`specs/techstack.md`）：硬性约束 1（SI 单位内部计算，界面显示 mm / Vpp）；约束 2（`src/mathmodel/` 纯计算层，禁 UI 依赖）；约束 3（appState schema 纪律——本功能 motorTauMs 逐字段回退、未升版本即其先例）；约束 5（**表达式解析禁用 `eval`**，误差公式走递归下降解析 `compileFormula()`）。
 - 前置条件：Phase 1 `01-track-geometry`（路径采样 `samplePath()`/`pointAtLength()`、闭环吸合、`createNearestSeeker()` 局部最近点查询）；Phase 2 `02-magnetic-field`（单点场 `computeB()`）；Phase 3 `03-sensor-model`（式 (6.1) 响应、车体位姿变换、式 (6.9) ψ 符号约定）；Phase 4 `04-measured-data-model`（实测数据源，`readSensor` 按当前数据源注入）。
 - 参数性质：τ_m、W、v_base 等整车参数均为名义先验值，由实车实验标定回填（实验规程见 `specs/research/2026-08-13-experiment-modeling.md` 实验 4/5；数据接口见 `specs/features/07-persistence-export/` 接口③）。
-- 源文档：归档版《数学模型.md》§8（`docs/legacy/数学模型.md`，式 (8.1)–(8.11)）、归档版《程序设计说明.md》§4（`docs/legacy/程序设计说明.md`）。
+- 源文档：归档版《数学模型.md》§8（`archive/docs/legacy/数学模型.md`，式 (8.1)–(8.11)）、归档版《程序设计说明.md》§4（`archive/docs/legacy/程序设计说明.md`）。
 
 ## 任务分组（Task Groups）
 

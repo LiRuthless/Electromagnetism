@@ -87,7 +87,7 @@ $$\psi=\text{切向角}-\theta \tag{6.9}$$
 - **代码落点**：`em-field-studio/src/mathmodel/sensor.ts`（响应公式、标定、布局表、坐标变换）、`em-field-studio/src/mathmodel/sweep.ts`（全程扫描与实测版扫描）；UI 落点 `src/components/SensorPanel.tsx`（车体位姿区、电感布局编辑）、`src/pages/Home.tsx`（位姿状态编排、轨迹位姿反算 `trajPoseInfo`）。
 - **`CarPose` 结构**（`sensor.ts`）：`{ px, py, tx, ty, e, psi }`——px/py 为赛道中线参考点（世界系，m），tx/ty 为单位切向，e 为横向偏差（m，> 0 向行进方向右侧偏移），psi 为航向角（rad，> 0 向右偏）。
 - **`SensorDef` 与 `defaultLayout()`**（`sensor.ts`）：`{ id, name, x, y, h, axisPreset, axis }`——x/y/h 为车体系坐标与安装高度（m）；`axisPreset: 'z' | 'x' | 'y' | 'custom'`，`axis` 为自定义敏感轴（车体系三分量，无需归一化，`axisPreset = 'custom'` 时生效）。`axisVector(s)` 返回归一化敏感轴：`z → [0,0,1]`、`x → [1,0,0]`、`y → [0,1,0]`、`custom → axis`。`defaultLayout()` 返回 FR-5 表格的 4 电感（y = 0.08、h = 0.075，单位 m）。标定常量：`TOUCH_DIST_M = 0.00325`、`VPP_ANCHOR_DEFAULT = 6`；`touchField(I)` / `kFromAnchor(vppAnchor, I)` 对应式 (6.3)/(6.4)。
-- **布局 JSON 格式**：`SensorDef[]` 数组（无 id 亦可导入），字段 `name / x / y / h（m）/ axisPreset / axis[3]`；与导出互逆。工作区样例 `presets/sensor-layout.json` 与默认布局等价。
+- **布局 JSON 格式**：`SensorDef[]` 数组（无 id 亦可导入），字段 `name / x / y / h（m）/ axisPreset / axis[3]`；与导出互逆。工作区样例 `archive/presets/sensor-layout.json` 与默认布局等价。
 - **`nearestOnPath` 反算约定**（`track.ts`，"跟随仿真轨迹"模式由轨迹绝对位姿 (x, y, θ) 反算 s/e/ψ 展示用）：s 与参考点由 `nearestOnPath(path, x, y)` 在路径采样点上做相邻点细分投影插值取最近点；e 由 `signedLateralDistance()` 求取（右正，与式 (6.5) 的 e 约定一致，见 `specs/features/04-measured-data-model/requirements.md` 式 (7.1)）；ψ 按式 (6.9) 取 `atan2(ty, tx) − θ` 并以最短弧归一到 (−π, π]。三者在界面上只读显示。
 - **UI 交互约定**：手动位姿滑块量程 s 0–全长 mm、e ±250 mm、ψ ±30°；标定 Vpp 滑块 5–7 V；四处滑块当前值经共享组件 `ui/mini-num.tsx` 点击键入（失焦/Enter 提交、越界钳位到滑块量程）。布局编辑的 +添加 / 导出 / 导入按钮位于"电感布局"分区标题栏右侧（分区卡片体系见 `specs/features/06-ui-charts-panels/`）。
 

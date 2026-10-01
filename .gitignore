@@ -2,11 +2,8 @@
 # 打包出的安装程序（GitHub 单文件 100MB 限制，且属于构建产物）
 *.exe
 
-# 旧版本备份
-backup/
-
 # 参考文献 PDF 与提取文本（约 250MB，仅本地保留）
-papers/
+archive/papers/
 
 # 仿真运行输出（图表等生成物）
 outputs/

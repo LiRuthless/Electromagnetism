@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""提取 papers/ 下 PDF 的目录结构与正文文本（分文件输出 txt 到 papers/papers_text/）"""
+"""提取 archive/papers/ 下 PDF 的目录结构与正文文本（分文件输出 txt 到 archive/papers/papers_text/）"""
 from pathlib import Path
 
 from pypdf import PdfReader

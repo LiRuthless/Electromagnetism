@@ -71,4 +71,5 @@ MATLAB 侧：`matlab-simulink/` 下 `build_all`（一键建模）、`runAll`（�
 - 主程序 `em-field-studio/`：`src/mathmodel/`（数学模型层，track/field/sensor/sweep/measured/control/kinematics）、`src/components/`（UI，`ui/` 为 shadcn 通用组件）、`src/pages/Home.tsx`（状态编排）、`src/utils/`（持久化/导出）、`src/workers/` + `src/hooks/`（磁场网格 Web Worker）、`electron/main.cjs`、`scripts/`（自检与打包辅助）；
 - `matlab-simulink/`：Simulink 移植（geom/field/sensor/control/blocks/selfcheck/track_lib），公式注释的"式 (x.y)"编号与 specs/features/ 各规约保留的原编号一致；
 - specs/ 内文件名一律小写英文 + 连字符；功能目录 `NN-<kebab-case-name>`；
+- 文献与参考资料统一收编根目录 `archive/`（docs/ 项目文档与 legacy 归档、papers/ 论文 PDF（仅本地）、presets/ 预设、references/ 参考图、scripts/extract_papers.py）；
 - 格式化：沿用现有代码风格（无独立 formatter 配置），lint 过 `npm run lint`。

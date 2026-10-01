@@ -1,7 +1,8 @@
 # 打包 exe 操作手册（本机环境适配版）
 
-> 约定：每次代码修改后，直接重新打包便携版 exe，并复制到工作目录根
-> `E:\study\Electromagnetism\电磁场建模仿真工具 0.1.0.exe`（覆盖旧版）。
+> 约定：两阶段发布——改完代码只出预览版（`npm run build` / `npm run dev`），经用户明确同意后才按本手册打便携版 exe。
+> 产物复制到工作目录根 `E:\study\Electromagnetism\电磁场建模仿真工具 0.1.0.exe`（覆盖旧版），并上传 GitHub Releases
+>（exe 不进 git，走 Releases 附件，规避 GitHub 单文件 100MB 限制）；不再保留本地旧版备份（原 `backup/` 做法已于 2026-10-01 废止）。
 
 ## 本机环境的三个坑（2026-07-24 实测）
 
@@ -49,6 +50,9 @@ node scripts/finish-portable.cjs
 cp "release/电磁场建模仿真工具 0.1.0.exe" "E:/study/Electromagnetism/电磁场建模仿真工具 0.1.0.exe"
 rm -rf release/win-unpacked release/win-unpacked.tmp release/*.7z \
        release/builder-debug.yml release/portable*.nsi release/0-messages.nsh
+
+# 6. 上传 GitHub Releases（发布渠道，2026-10-01 起；本地不再保留旧版备份）
+gh release create v0.1.0 "E:/study/Electromagnetism/电磁场建模仿真工具 0.1.0.exe" --title "电磁场建模仿真工具 0.1.0"
 ```
 
 注意：第 2 步的 `-c.compression=store` 只影响 win-unpacked 阶段的临时产物；

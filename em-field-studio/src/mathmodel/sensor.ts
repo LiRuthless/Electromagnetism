@@ -67,7 +67,7 @@ function nextId() {
 }
 
 /**
- * 默认布局（2026-08-03 设计变更）：与工作区预设 `presets/sensor-layout.json` 等价的 4 电感。
+ * 默认布局（2026-08-03 设计变更）：与工作区预设 `archive/presets/sensor-layout.json` 等价的 4 电感。
  * 前排/主对/宽对同在 y=80mm 纵排，安装高度 h=75mm：
  *   L1(−50mm, 主对·左, 纵向感 By) / R1(+50mm, 主对·右, 纵向感 By)
  *   L2(−75mm, 宽对·左, 横向感 Bx) / R2(+75mm, 宽对·右, 横向感 Bx)

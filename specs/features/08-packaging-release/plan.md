@@ -19,7 +19,7 @@
   - `specs/mission.md`——范围内含"Windows 便携版 exe 打包与发布"；成功标准含"全部自动化自检通过（判据见各 feature 的 validation.md）"与"任何设计变更可沿规约 → 代码 → 自检追溯，文档与代码不漂移"；
   - `specs/techstack.md`——硬性约束 4（两阶段发布：改完代码只出预览版，用户明确同意后才打 exe）、硬性约束 6（Electron 安全：`contextIsolation` 开、`nodeIntegration` 关，单窗口加载 `dist/index.html`）、构建与工具链命令表、测试策略（物理正确性自检 + 数值自洽 + 回归防护，非单元测试框架）。
 - 前置条件：Phase 01–07 各功能已实现——自检体系以它们的数学模型与持久化/调度机制为验证对象，打包体系以其构建产物（`dist/` + `electron/`）为输入。
-- 归档来源：`docs/legacy/程序设计说明.md` §7（打包与自检，两阶段发布流程 + 命令表 + Electron 主进程约定）、`docs/legacy/数学模型.md` §10.1（自动化自检表）、`em-field-studio/BUILD-EXE.md`（本机离线打包操作手册，持续有效）。
+- 归档来源：`archive/docs/legacy/程序设计说明.md` §7（打包与自检，两阶段发布流程 + 命令表 + Electron 主进程约定）、`archive/docs/legacy/数学模型.md` §10.1（自动化自检表）、`em-field-studio/BUILD-EXE.md`（本机离线打包操作手册，持续有效）。
 
 ## 任务分组（Task Groups）
 
@@ -51,5 +51,6 @@ Group 1（打包）与 Group 2（自检）并行起步、随各 feature 功能�
 - **本机网络限制（2026-07-24 实测）**：electron-builder 默认从 GitHub 下载 Electron 必现 `connect ETIMEDOUT`——明确排除在线打包流程，改为 `-c.electronDist=` 指向本机已有缓存压缩包，完全离线。
 - **杀毒软件实时扫描锁定（EPERM）**：electron-builder 对 win-unpacked.tmp 的 rename 必现 `EPERM`——放弃让 electron-builder 一步到位，改手工 `cp -r` + 组装 `resources/app` 后以 `--prepackaged` 跳过打包阶段。
 - **单次 Bash 300s 限制**：7z 正常压缩约 5 分钟，前台一次跑不完——拆成"先让 electron-builder 生成 7z 归档（超时被杀也没关系，7z 写完即落盘）→ `finish-portable.cjs` 复现 makensis 组装最终 exe"两步。
-- **发布节奏取舍（2026-08-03）**：`BUILD-EXE.md` 头部原约定"每次代码修改后直接重新打包便携版 exe"被两阶段发布取代——exe 打包耗时（7z 压缩约 5 分钟）且体积大（约 90 MB），改为预览版先行、用户确认后才打正式版。
+- **发布节奏取舍（2026-08-03）**：`BUILD-EXE.md` 头部原约定"每次代码修改后直接重新打包便携版 exe"被两阶段发布取代——exe 打包耗时（7z 压缩约 5 分钟）且体积大（约 90 MB），改为预览版先行、用户确认后才打正式版（BUILD-EXE.md 头部已于 2026-10-01 同步修正）。
+- **发布渠道（2026-10-01）**：exe 产物上传 GitHub Releases（Releases 附件，规避 GitHub 单文件 100MB 限制），不再保留本地旧版备份——原 `backup/` 目录做法废止并删除。
 - **测试策略取舍**：不引入单元测试框架，以"物理正确性自检 + 数值自洽 + 回归防护"脚本体系代替（`specs/techstack.md` 测试策略）——判据直接对应公式解析解与几何真值，更贴合建模项目的验证需求。

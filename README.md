@@ -8,20 +8,19 @@
 ├── AGENTS.md              # SDD 智能体入口指针（先读）
 ├── CHANGELOG.md           # 变更日志
 ├── specs/                 # SDD 规约体系：mission/techstack/roadmap + features/ + research/
-├── docs/legacy/           # 原设计基准双文档（数学模型/程序设计说明，2026-09-30 归档，仅供查证）
 ├── 启动仿真工具.bat        # Windows 下一键启动仿真工具
-├── track_model/           # Python 赛道/磁场/传感器仿真（run_all.py 一键复现）
+├── track_model/           # Python 遗留存档（赛道/磁场/传感器仿真，run_all.py 一键复现）
 ├── em-field-studio/       # 电磁场建模仿真工具（Electron + Vite + TypeScript）
 ├── matlab-simulink/       # MATLAB/Simulink 对照移植
-├── docs/                  # 建模方案、仿真结果小结、参考论文清单等
-├── presets/               # 传感器布局 / 赛道预设（JSON）
-├── references/            # 参考资料图片、检索记录
-├── scripts/               # 辅助脚本（如 extract_papers.py 提取论文文本）
-│
-├── papers/                # 参考论文 PDF（体积大，仅本地保留，不进仓库）
-├── outputs/               # 仿真输出图表（生成物，不进仓库）
-└── backup/                # 旧版本安装包备份（不进仓库）
+└── archive/               # 文献与参考资料
+    ├── docs/              # 建模方案、仿真结果小结、论文模板、legacy/ 归档设计双文档
+    ├── presets/           # 传感器布局 / 赛道预设（JSON）
+    ├── references/        # 参考资料图片、检索记录
+    ├── scripts/           # 辅助脚本（extract_papers.py 提取论文文本）
+    └── papers/            # 参考论文 PDF（体积大，仅本地保留，不进仓库）
 ```
+
+发布产物：便携版 exe 固定落点工作区根（不进 git），并上传 GitHub Releases；不再保留本地旧版备份。
 
 ## 快速开始
 
@@ -48,4 +47,4 @@ npm run dev          # 开发模式；打包见 em-field-studio/BUILD-EXE.md
 - 功能规约：`specs/features/NN-*/`（plan / requirements / validation 三件套）
 - 变更日志：`CHANGELOG.md`；实验建模手册：`specs/research/2026-08-13-experiment-modeling.md`
 
-任何设计变更先更新对应 feature 规约，再实现。原设计基准双文档（《数学模型.md》《程序设计说明.md》）已归档至 `docs/legacy/`，仅供查证。
+任何设计变更先更新对应 feature 规约，再实现。原设计基准双文档（《数学模型.md》《程序设计说明.md》）已归档至 `archive/docs/legacy/`，仅供查证。

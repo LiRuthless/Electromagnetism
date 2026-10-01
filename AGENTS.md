@@ -17,7 +17,7 @@
 
 ## 历史资料与编号对应关系
 
-- 原设计基准双文档已归档：`docs/legacy/数学模型.md`、`docs/legacy/程序设计说明.md`（2026-09-30 起不再维护，仅供查证）。
+- 原设计基准双文档已归档：`archive/docs/legacy/数学模型.md`、`archive/docs/legacy/程序设计说明.md`（2026-09-30 起不再维护，仅供查证）。
 - **代码注释中的"《数学模型.md》§x / 式 (x.y)"编号依然有效**：迁移后的各 feature 规约原样保留了式编号；归档版全文可作对照。新旧对照：§4→`01-track-geometry`，§5→`02-magnetic-field`，§6→`03-sensor-model`，§7→`04-measured-data-model`，§8→`05-tracking-control`，§9→`specs/research/2026-08-13-experiment-modeling.md`，§10→各 feature 的 validation.md。
 - 打包 exe 的本机离线流程见 `em-field-studio/BUILD-EXE.md`；**打 exe 必须经用户明确同意**（两阶段发布）。
 

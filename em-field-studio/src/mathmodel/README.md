@@ -3,7 +3,7 @@
 本目录是程序的**数学模型层**，与界面/交互代码分离维护（2026-08-12 由 `src/physics/` + `src/sensors/measured.ts` 合并迁建）。
 
 - **设计规约**：`E:\study\Electromagnetism\specs\features\`（SDD 体系，各模块落点见下表；公式、符号约定、默认值以代码为准回填规约）。
-- 原设计基准双文档已于 2026-09-30 归档至 `docs/legacy/`，仅供查证；本文出现的"式 (x.y)"编号与各 feature 规约中保留的原编号一致。
+- 原设计基准双文档已于 2026-09-30 归档至 `archive/docs/legacy/`，仅供查证；本文出现的"式 (x.y)"编号与各 feature 规约中保留的原编号一致。
 
 ## 模块
 
