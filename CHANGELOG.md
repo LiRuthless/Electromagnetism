@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### Added
+- **Phase 12 仿真器架构分层（2026-10-01，`specs/features/12-simulator-architecture/`）**：`src/mathmodel/sim/` 子层——`CarController` 控制器接口 + 内置 `FormulaController`（公式 + PD + 差速轮速兜底/对照组）、多速率周期任务调度器（整数 µs 时间轴防漂移、过期周期合并、控制指令零阶保持）、虚拟整车 `Vehicle`（收敛 Home.tsx 三处重复读数闭包为 `createSensorSampler` 单一实现）、`Simulator` 门面（`reset` / `step` 实时逐帧 / `runToEnd` 快进）；一键调 PID 网格搜索迁入模型层（生成器逐候选 yield 进度，setTimeout 让出留 UI 侧）；循迹控制区新增快进/实时模式切换与运行/暂停/重置/倍速（0.25–4×）播放控制（会话内状态，appState 不动）。`simulateTracking()` 保持签名与 `TrackingResult` 不变，改为兼容薄壳；回归基线 fixture 逐点比对偏差 = 0（V-1）。新增 `npm run selfcheck:sim`（调度器合成测试 / FormulaController 等价 / 整定迁移等价）。
 - MATLAB/Simulink 对照移植（`matlab-simulink/`：em_field_check / em_track_sim 双模型 + runAll 自检，与 JS 数学模型层逐行对齐）。
 - **SDD 文档体系**（2026-09-30）：`specs/`（mission / techstack / roadmap + 功能规约 10 套 + research 实验建模记录）、`AGENTS.md`、本文档；原《数学模型.md》《程序设计说明.md》内容全部迁入 specs/，原文归档 `archive/docs/legacy/`。
 

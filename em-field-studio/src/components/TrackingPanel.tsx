@@ -55,6 +55,20 @@ interface Props {
   onRangeChange: (id: string, r: { min: number; max: number } | null) => void;
   /** 循迹类折线图点击数据点联动车位（程序设计说明.md §3.6）：参数为该点时间 t（s） */
   onChartPointClick: (tSec: number) => void;
+  /** 实时模式播放控制（Phase 12 FR-8；会话内状态，不入 appState） */
+  playback: {
+    mode: 'fast' | 'realtime';
+    onModeChange: (m: 'fast' | 'realtime') => void;
+    playing: boolean;
+    speed: number;
+    /** 实时仿真已终止（冲线/失控/步数上限） */
+    done: boolean;
+    /** 实时仿真器可用（循迹开启且有赛道/电感） */
+    available: boolean;
+    onPlayPause: () => void;
+    onReset: () => void;
+    onSpeedChange: (s: number) => void;
+  };
 }
 
 /** 小型数字输入已提取为共享组件：@/components/ui/mini-num（程序设计说明.md §3.8） */
@@ -332,6 +346,7 @@ export default function TrackingPanel({
   ranges,
   onRangeChange,
   onChartPointClick,
+  playback,
 }: Props) {
   const set = (patch: Partial<TrackingParams>) => onChange({ ...params, ...patch });
 
@@ -534,6 +549,65 @@ export default function TrackingPanel({
               </div>
             </div>
 
+            {/* 模式切换 + 实时播放控制（Phase 12 FR-8/FR-9：快进 = 防抖重算全程；实时 = rAF 逐帧） */}
+            <div className="flex items-center gap-1">
+              <button
+                className={`h-5 rounded border px-1.5 text-[10px] ${
+                  playback.mode === 'fast'
+                    ? 'border-cyan-700/60 bg-cyan-950/40 text-cyan-300'
+                    : 'border-slate-700 text-slate-400 hover:bg-slate-800'
+                }`}
+                onClick={() => playback.onModeChange('fast')}
+              >
+                快进
+              </button>
+              <button
+                className={`h-5 rounded border px-1.5 text-[10px] ${
+                  playback.mode === 'realtime'
+                    ? 'border-cyan-700/60 bg-cyan-950/40 text-cyan-300'
+                    : 'border-slate-700 text-slate-400 hover:bg-slate-800'
+                }`}
+                onClick={() => playback.onModeChange('realtime')}
+              >
+                实时
+              </button>
+              {playback.mode === 'realtime' && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-5 flex-1 border-slate-600 bg-slate-800 text-[10px]"
+                    disabled={!playback.available || playback.done}
+                    onClick={playback.onPlayPause}
+                  >
+                    {playback.playing ? '⏸ 暂停' : '▶ 运行'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-5 border-slate-600 bg-slate-800 px-1.5 text-[10px]"
+                    disabled={!playback.available}
+                    onClick={playback.onReset}
+                  >
+                    重置
+                  </Button>
+                  {[0.25, 0.5, 1, 2, 4].map((s) => (
+                    <button
+                      key={s}
+                      className={`h-5 rounded border px-1 text-[9px] ${
+                        playback.speed === s
+                          ? 'border-cyan-700/60 bg-cyan-950/40 text-cyan-300'
+                          : 'border-slate-700 text-slate-500 hover:bg-slate-800'
+                      }`}
+                      onClick={() => playback.onSpeedChange(s)}
+                    >
+                      {s}×
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+
             {/* 结果状态 */}
             {result ? (
               <div className="space-y-1.5 rounded border border-slate-700 bg-slate-800/40 p-2">
@@ -541,18 +615,25 @@ export default function TrackingPanel({
                   <Badge
                     variant="outline"
                     className={`text-[10px] ${
-                      result.status === 'finished'
-                        ? 'border-emerald-700/60 text-emerald-300'
-                        : result.status === 'lost'
-                          ? 'border-red-800/60 text-red-400'
-                          : 'border-amber-700/60 text-amber-300'
+                      playback.mode === 'realtime' && !playback.done
+                        ? 'border-cyan-700/60 text-cyan-300'
+                        : result.status === 'finished'
+                          ? 'border-emerald-700/60 text-emerald-300'
+                          : result.status === 'lost'
+                            ? 'border-red-800/60 text-red-400'
+                            : 'border-amber-700/60 text-amber-300'
                     }`}
                   >
-                    {STATUS_TEXT[result.status]}
+                    {playback.mode === 'realtime' && !playback.done
+                      ? playback.playing
+                        ? '▶ 实时运行中'
+                        : '⏸ 待运行 / 已暂停'
+                      : STATUS_TEXT[result.status]}
                   </Badge>
                   <span className="font-mono text-[10px] text-slate-400">
                     {result.steps} 步 · 用时 {result.timeS.toFixed(2)}s · 弧长{' '}
-                    {(result.distM * 1000).toFixed(0)}mm · 重算 {result.elapsedMs.toFixed(0)}ms
+                    {(result.distM * 1000).toFixed(0)}mm
+                    {playback.mode === 'fast' && ` · 重算 ${result.elapsedMs.toFixed(0)}ms`}
                   </span>
                 </div>
                 <FloatingChart id="trkErr" title="Err(t)" defaultW={420} defaultH={200}>

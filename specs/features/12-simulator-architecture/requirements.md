@@ -1,10 +1,10 @@
 # Phase 12: 仿真器架构分层 — 需求
 
-> 本 Phase 为架构等价重构，原则上不新增物理公式；引用既有公式按 05 规约锚点链接（式 [(8.10)](../05-tracking-control/requirements.md#eq-8-10) / [(8.11)](../05-tracking-control/requirements.md#eq-8-11)）。全部需求为新增设计，状态标记 ⬜。
+> 本 Phase 为架构等价重构，原则上不新增物理公式；引用既有公式按 05 规约锚点链接（式 [(8.10)](../05-tracking-control/requirements.md#eq-8-10) / [(8.11)](../05-tracking-control/requirements.md#eq-8-11)）。2026-10-01 实现落地，全部需求 ✅。
 
 ## 功能需求
 
-### FR-1　控制器接口 `CarController` 与内置 `FormulaController`（⬜）
+### FR-1　控制器接口 `CarController` 与内置 `FormulaController`（✅）
 
 模型层定义控制器抽象（`src/mathmodel/sim/controller.ts`），控制器是"读数进、轮速指令出"的纯数据黑盒：
 
@@ -38,14 +38,14 @@ export interface CarController {
 
 `FormulaController` 为内置实现：构造参数 = `TrackingParams` + 编译后的 `CompiledFormula`；`step()` 内部逐行复刻现有 `simulateTracking()` 内联逻辑——公式求值（分母为零/未知变量/NaN 回退上一步误差）、首步 `errRate = 0`、之后 `errRate = (err − prevErr) / Δt`（Δt 取相邻两次 `step()` 的 `tMs` 差，秒）、`pdOutput()`、`wheelSpeeds()` 限幅。用途：无外部控制器时的兜底 + 重构等价性的对照组（V-3）。
 
-### FR-2　多速率周期任务调度器（⬜，`src/mathmodel/sim/scheduler.ts`）
+### FR-2　多速率周期任务调度器（✅，`src/mathmodel/sim/scheduler.ts`）
 
 - 任务表 `[{ periodMs, entry }]`，按注册顺序执行；**物理积分步长 dtSim 与控制任务周期分离**——控制周期不再必然等于积分步长。
 - **整数微秒时间轴**：构造时将 `dtSimMs` 与各 `periodMs` 经 `Math.round(x × 1000)` 转整数 µs；调度器内部时钟、到期判定、到期点推进全部整数运算，防长程浮点漂移。仅在对外（`SensorReadings.tMs`、记录数组 t）时换算回 float。
 - 触发语义：每个物理 tick 时钟推进 `dtSimUs`；任务到期（`now ≥ due`）即触发一次，随后 `due += periodUs` 循环推进至 `due > now`（**过期周期合并**：单个 tick 内同一任务至多触发一次，不补触发）。**控制指令在两个 tick 之间零阶保持**（ZOH）——未到期的 tick 沿用上次指令。
 - 现有行为 = 单任务 `periodMs = dtMs` 特例：此时每 tick 恰好触发一次，语义与 `simulateTracking()` 内联循环完全一致（V-1/V-2 防护）。
 
-### FR-3　虚拟整车 `Vehicle` 与读数采样器（⬜，`src/mathmodel/sim/vehicle.ts`）
+### FR-3　虚拟整车 `Vehicle` 与读数采样器（✅，`src/mathmodel/sim/vehicle.ts`）
 
 - **读数采样器工厂** `createSensorSampler(opts)`：收敛 `Home.tsx` 现三处重复闭包（约 575–591 / 643–666 / 692–709 行）为单一实现。入参为纯数据：
 
@@ -65,7 +65,7 @@ createSensorSampler(opts: {
 - `Vehicle` 持有：当前位姿 `CarState`、实际轮速状态（vL/vR，初始 = v_base）、控制器实例、采样器。每物理 tick 行为（单任务特例下与 `simulateTracking()` 逐行对齐）：按当前位姿经 `carFrame()` 求各电感世界坐标/敏感轴 → 采样得读数包 → 到期任务触发 `controller.step()` 得指令（未到期零阶保持）→ `motorLag()` 按 dtSim 精确更新实际轮速（式 [(8.6)](../05-tracking-control/requirements.md#eq-8-6)[(8.7)](../05-tracking-control/requirements.md#eq-8-7)）→ `stepCar()` 半隐式欧拉积分新位姿（式 [(8.8)](../05-tracking-control/requirements.md#eq-8-8)[(8.9)](../05-tracking-control/requirements.md#eq-8-9)）。
 - 初始位姿规则不变：起点中线 + 切向航向 + initE/initPsi 扰动；滞后状态初始 v_L = v_R = v_base。
 
-### FR-4　Simulator 门面（⬜，`src/mathmodel/sim/simulator.ts`）
+### FR-4　Simulator 门面（✅，`src/mathmodel/sim/simulator.ts`）
 
 ```ts
 export class Simulator {
@@ -77,8 +77,8 @@ export class Simulator {
     closed: boolean;
     maxSteps?: number;
   });
-  /** 复位全部仿真状态（位姿/轮速/控制器/调度器时钟/记录）并注入新参数 */
-  reset(params?: Partial<TrackingParams>): void;
+  /** 复位全部仿真状态（位姿/轮速/控制器/调度器时钟/记录）并注入新参数（完整 TrackingParams，实现口径） */
+  reset(params?: TrackingParams): void;
   /** 实时逐帧：推进一个物理 tick，返回当帧快照（位姿/轮速/err/读数/是否终止） */
   step(dtMs?: number): SimFrame;
   /** 快进：一次算全程至终止，返回 TrackingResult（等价现有 simulateTracking 行为） */
@@ -89,7 +89,7 @@ export class Simulator {
 - 终止条件沿用式 [(8.10)](../05-tracking-control/requirements.md#eq-8-10)：行驶弧长 ≥ 赛道总长（闭环，仅一圈）/ ≥ 总长 + 0.5 m（非闭环）→ finished；控制器上报 err 且 |Err| 持续超 `errLimit` 达 `errLimitSteps` 步 → lost；步数硬上限 100000（`MAX_TRACKING_STEPS`）→ maxSteps；位姿 NaN → lost。控制器不上报 err 时失控判停退化为 NaN/步数上限。
 - `runToEnd()` 记录语义与现状一致：逐 tick 记录 t/x/y/θ/vL/vR/err/sensorU（vL/vR 为电机滞后后的**实际**轮速）、`finishIndex`（首次跑满赛道总长的记录索引）、`timeS`/`distM`/`steps`/`elapsedMs`。
 
-### FR-5　一键调 PID 迁入模型层（⬜，`src/mathmodel/sim/autotune.ts`）
+### FR-5　一键调 PID 迁入模型层（✅，`src/mathmodel/sim/autotune.ts`）
 
 - 现有 `Home.tsx runAutoTune()`（681–806 行）整体迁入：网格搜索 (Kp, Kd)（粗搜 13×11 + 最优邻域 9×9 细化）、式 [(8.11)](../05-tracking-control/requirements.md#eq-8-11) 轨迹形状贴合目标函数（直线贴中线 / 弯道内收 ≤ e_in_max 不罚 / 外偏双倍罚 / 航向抖动罚）、逐轨迹点按 `segSpans` 段类型分类 + `createNearestSeeker` 局部最近点 O(窗口) 评价、选优顺序（先完赛 → J 最小 → 完赛时间最短）均保持逐行等价。
 - `segSpans` 段弧长区间表构建（现 Home.tsx 870–883 行，闭环吸合段按直线段处理）随评价逻辑一并迁入，导出 `buildSegSpans(segments, closed, pathLength)`。
@@ -100,38 +100,40 @@ export class Simulator {
 export function autoTuneGrid(opts: {
   simulator: Simulator;          // 已装配 FormulaController 的仿真器
   baseParams: TrackingParams;    // 除 kp/kd 外其余参数
+  path: PathSample;              // 评价器局部最近点查询用（实现时增补，原接口块遗漏）
+  segSpans: SegSpan[];           // 段类型区间表（buildSegSpans 产物，实现时增补）
   kpMax: number; kdMax: number; eInMaxMm: number;
 }): Generator<{ done: number; total: number }, { kp: number; kd: number } | null>;
 
 /** 同步排干包装（Node 自检 / 非交互场景用） */
-export function runAutoTuneSync(opts: same): { kp: number; kd: number } | null;
+export function runAutoTuneSync(opts: AutoTuneOpts): { kp: number; kd: number } | null;
 ```
 
   UI 侧驱动：每取 8 个候选（沿现状粒度）`await setTimeout(0)` 让出事件循环并刷新进度百分比。
 
-### FR-6　`simulateTracking()` 兼容薄壳（⬜，`src/mathmodel/kinematics.ts`）
+### FR-6　`simulateTracking()` 兼容薄壳（✅，`src/mathmodel/kinematics.ts`）
 
 - `simulateTracking()` 改为 `Simulator.runToEnd()` 的**兼容薄壳**：签名（`{ path, sensors, params, formula, readSensor, maxSteps?, closed? }`）与返回结构 `TrackingResult` 完全不变；内部装配"单任务 `periodMs = dtMs` + `FormulaController` + 透传 `readSensor` 的采样器适配"后调 `runToEnd()`。
 - **选择薄壳而非改调用点**（2026-10-01 确认）：`scripts/selfcheck-tracking.ts`、`matlab-simulink/` 对照注释、既有导出链路均指向该函数，薄壳扰动最小且本身即等价性活证据；薄壳留作稳定公共入口，不计划废弃。
 - `kinematics.ts` 继续导出 `CarState` / `stepCar()` / `carFrame()` / `TrackingResult` / `FINISH_TOLERANCE_M` / `MAX_TRACKING_STEPS`（`Vehicle` 复用 `stepCar()` / `carFrame()`，不复制实现）。
 
-### FR-7　Home.tsx 瘦身（⬜）
+### FR-7　Home.tsx 瘦身（✅）
 
 - 删除三处重复读数闭包（约 575–591、643–666、692–709 行），统一改调 `createSensorSampler()`；删除 `runAutoTune`（约 681–806 行）改调 `sim/autotune.ts` 生成器 + UI 驱动循环；删除 `segSpans` 本地构建改调 `buildSegSpans()`。
 - Home.tsx 保留职责：状态编排（appState 读写、防抖 `trackingTick`、位姿来源切换、数据源切换）、UI 组件装配、导出。页面内不再出现场计算/实测求值/网格搜索细节。
 
-### FR-8　实时模式与播放控制（⬜）
+### FR-8　实时模式与播放控制（✅）
 
 - 循迹控制区（TrackingPanel 结果区）新增模式切换：**快进**（现有行为）/ **实时**。
 - 实时模式：rAF 循环驱动 `simulator.step()`，画布逐帧叠加轨迹与车框；播放控制 = 运行 / 暂停 / 重置 / 倍速（0.25× / 0.5× / 1× / 2× / 4×）。倍速经整数 µs 累加器折算每帧推进的 tick 数，不引入浮点时间漂移。
 - 播放状态（模式/播放中/倍速/当前仿真时刻）为会话内 `useState`，**不入 appState**（schema 不动，见 TC-3）。
 - 终止（finished/lost/maxSteps）后自动停在末帧并显示结果摘要；重置回初始位姿。
 
-### FR-9　快进模式行为保留（⬜）
+### FR-9　快进模式行为保留（✅）
 
 快进模式维持现状：任一循迹参数（含公式）修改后防抖 ~200ms 经 `trackingTick` 重算全程（`runToEnd()`），轨迹线/Err(t)/轮速(t)/电感值图/结果摘要同步刷新；轨迹进度滑块回放、位姿来源"跟随仿真轨迹"、CSV 导出（接口②）行为不变（见 [`specs/features/05-tracking-control/requirements.md`](../05-tracking-control/requirements.md) FR-13/FR-14/FR-15）。
 
-### FR-10　appState schema 不动（⬜）
+### FR-10　appState schema 不动（✅）
 
 本 Phase 不新增/不修改 appState 字段，`APP_STATE_VERSION` 保持 6；循迹参数 `tracking` 与量程 `trackingRanges` 持久化语义不变（[`specs/features/07-persistence-export/requirements.md`](../07-persistence-export/requirements.md)）。
 

@@ -32,7 +32,10 @@ import TrackEditor, {
   type GlobalParams,
   type LayMode,
 } from '../components/TrackEditor';
-import { computeB } from '../mathmodel/field';
+import { Simulator } from '../mathmodel/sim/simulator';
+import { FormulaController } from '../mathmodel/sim/controller';
+import { createSensorSampler, createSensorSamplerDetailed } from '../mathmodel/sim/vehicle';
+import { autoTuneGrid, buildSegSpans } from '../mathmodel/sim/autotune';
 import type { CarPose, SensorDef, SensorReading } from '../mathmodel/sensor';
 import {
   axisVector,
@@ -49,14 +52,13 @@ import {
   compileFormula,
   type TrackingParams,
 } from '../mathmodel/control';
-import { simulateTracking, type TrackingResult } from '../mathmodel/kinematics';
+import { type TrackingResult } from '../mathmodel/kinematics';
 import {
   buildElements,
   buildFieldElements,
   canCloseTrack,
   closureGapM,
   cornerRulers,
-  createNearestSeeker,
   hexagonSegs,
   lineSegTo,
   nearestOnPath,
@@ -64,7 +66,6 @@ import {
   previewSegment,
   rightAngleSeg,
   samplePath,
-  segmentLength,
   segmentSummaries,
   trackTip,
   type SegDef,
@@ -369,7 +370,6 @@ export default function Home() {
     setView(null);
     setResetCounter((c) => c + 1); // 重挂载画布 -> 回到自动 fit
     flash('已恢复默认设置');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 赛道离散化（<=1cm 小段，渲染/采样/段数展示用）
@@ -420,7 +420,8 @@ export default function Home() {
   useEffect(() => {
     if (trackDef.closed && !canCloseTrack(trackDef.segments)) {
       setTrackDef((t) => {
-        const { closed: _dropped, ...rest } = t;
+        const rest = { ...t };
+        delete rest.closed;
         return rest;
       });
     }
@@ -431,7 +432,8 @@ export default function Home() {
         if (!canCloseTrack(t.segments)) return t; // 超阈值不可闭环
         return { ...t, closed: true };
       }
-      const { closed: _dropped, ...rest } = t;
+      const rest = { ...t };
+      delete rest.closed;
       return rest;
     });
   }, []);
@@ -563,33 +565,26 @@ export default function Home() {
   const trackingResult: TrackingResult | null = useMemo(() => {
     const d = trackingDepsRef.current;
     if (!d.tracking.enabled || d.path.s.length === 0 || d.sensors.length === 0) return null;
-    const I = d.currentMa / 1000;
-    const modelKind: MeasuredModelKind | null =
-      d.sourceKind === 'measured-fit' ? 'fit' : d.sourceKind === 'measured-phys' ? 'phys' : null;
-    return simulateTracking({
+    const sampler = createSensorSampler({
+      path: d.path,
+      elements: d.elements,
+      currentMa: d.currentMa,
+      k: d.k,
+      sourceKind: d.sourceKind,
+      measured: d.measured,
+    });
+    const sim = new Simulator({
       path: d.path,
       sensors: d.sensors,
-      params: d.tracking,
-      formula: d.formula,
-      closed: trackClosed, // 闭环赛道：行驶弧长达单圈总长即完赛（数学模型.md §4/数学模型.md §8.5）
-      readSensor: (sensor, w, axisWorld) => {
-        if (modelKind && d.measured) {
-          const dMm = signedLateralDistance(d.path, w.x, w.y) * 1000;
-          const v = evalMeasured(
-            d.measured.dataset,
-            d.measured.fits,
-            modelKind,
-            sensor.name,
-            sensor.axisPreset,
-            dMm,
-            { hM: sensor.h, axis: axisVector(sensor), I, k: d.k },
-          );
-          if (v !== null) return v;
-        }
-        const [bx, by, bz] = computeB(w.x, w.y, sensor.h, d.elements, I);
-        return d.k * Math.abs(bx * axisWorld[0] + by * axisWorld[1] + bz * axisWorld[2]);
+      vehicle: {
+        controller: new FormulaController(d.tracking, d.formula),
+        sampler,
+        params: d.tracking,
       },
+      tasks: [{ periodMs: d.tracking.dtMs, entry: 'control' }],
+      closed: trackClosed, // 闭环赛道：行驶弧长达单圈总长即完赛（数学模型.md §4/数学模型.md §8.5）
     });
+    return sim.runToEnd();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackingTick]);
 
@@ -631,53 +626,47 @@ export default function Home() {
   const carPose: CarPose | null = followTraj ? trajPoseInfo.pose : manualPose;
   const displayPose: PoseState = followTraj ? trajPoseInfo.display : poseState;
 
-  // 电感实时读数：
+  // 电感实时读数（采样策略已收敛至 sim/vehicle.ts createSensorSamplerDetailed，与循迹/整定共用一份实现）：
   // - 仿真源：|u(t)| = k·cosθ·B = k·|B(P_i)·n̂_i|（Vpp）
   // - 实测源（方案A 拟合 / 方案B 物理公式+偏差校正）：电感世界坐标 -> 有符号横向距离 d -> 实测模型求值；
   //   通道无实测数据时回退仿真公式，name 加 * 标注（保持面板可用）
   const readings: SensorReading[] = useMemo(() => {
     if (!carPose) return [];
     const frame = poseFrame(carPose);
-    const I = params.currentMa / 1000;
-    // 仿真回退（无实测数据的通道用）
-    const simValue = (s: SensorDef, w: { x: number; y: number; h: number }) => {
-      const n = sensorAxisWorld(s, frame);
-      const [bx, by, bz] = computeB(w.x, w.y, w.h, fieldElements, I);
-      return { value: kCal * Math.abs(bx * n[0] + by * n[1] + bz * n[2]), bx, by, bz };
-    };
     if (sourceKind === 'measured-fit' || sourceKind === 'measured-phys') {
       if (!measured || path.s.length === 0) return [];
-      const modelKind: MeasuredModelKind = sourceKind === 'measured-fit' ? 'fit' : 'phys';
+      const detail = createSensorSamplerDetailed({
+        path,
+        elements: fieldElements,
+        currentMa: params.currentMa,
+        k: kCal,
+        sourceKind,
+        measured,
+      });
       return sensors.map((s) => {
         const w = sensorWorld(s, frame);
-        const dMm = signedLateralDistance(path, w.x, w.y) * 1000;
-        const v = evalMeasured(
-          measured.dataset,
-          measured.fits,
-          modelKind,
-          s.name,
-          s.axisPreset,
-          dMm,
-          { hM: s.h, axis: axisVector(s), I, k: kCal },
-        );
-        if (v !== null) return { name: s.name, value: v, x: w.x, y: w.y };
-        const sim = simValue(s, w);
-        return { name: `${s.name}*`, value: sim.value, x: w.x, y: w.y, bx: sim.bx, by: sim.by, bz: sim.bz };
+        const d = detail(s, w, sensorAxisWorld(s, frame));
+        if (!d.fallback) return { name: s.name, value: d.value, x: w.x, y: w.y };
+        return { name: `${s.name}*`, value: d.value, x: w.x, y: w.y, bx: d.bx, by: d.by, bz: d.bz };
       });
     }
     if (sourceKind !== 'simulation') return [];
+    const detail = createSensorSamplerDetailed({
+      path,
+      elements: fieldElements,
+      currentMa: params.currentMa,
+      k: kCal,
+      sourceKind,
+      measured,
+    });
     return sensors.map((s) => {
       const w = sensorWorld(s, frame);
-      const sim = simValue(s, w);
-      return { name: s.name, value: sim.value, x: w.x, y: w.y, bx: sim.bx, by: sim.by, bz: sim.bz };
+      const d = detail(s, w, sensorAxisWorld(s, frame));
+      return { name: s.name, value: d.value, x: w.x, y: w.y, bx: d.bx, by: d.by, bz: d.bz };
     });
   }, [carPose, sensors, fieldElements, params.currentMa, kCal, sourceKind, measured, path]);
 
-  // ---------------- 一键调 PID（数学模型.md §8.6，2026-08-03 目标改为轨迹形状贴合） ----------------
-  // 在 [0,kpMax]×[0,kdMax] 网格搜索（粗搜后局部细化），逐组跑循迹仿真；
-  // 目标 J = RMS(|e|_直线) + 2·RMS(e_外,弯道) + RMS(max(0, e_内−e_内,max)_弯道) + 0.5·RMS(Δθ 抖动)；
-  // 直线段罚横向偏差 |e|；弯道允许并鼓励内收 ≤ e_in_max 不罚、外偏 2 倍罚、罚航向抖动保证过弯圆润；
-  // 选优顺序：先比能否完赛（失控判停不触发），再比 J 最小，再比完赛时间最短。
+  // ---------------- 一键调 PID（数学模型.md §8.6；算法已迁入 sim/autotune.ts，此处仅装配与驱动） ----------------
   const runAutoTune = async (
     kpMax: number,
     kdMax: number,
@@ -685,125 +674,126 @@ export default function Home() {
     onProgress: (done: number, total: number) => void,
   ): Promise<{ kp: number; kd: number } | null> => {
     if (!tracking.enabled || path.s.length === 0 || sensors.length === 0) return null;
-    const eInMaxM = eInMaxMm / 1000;
-    const I = params.currentMa / 1000;
-    const modelKind: MeasuredModelKind | null =
-      sourceKind === 'measured-fit' ? 'fit' : sourceKind === 'measured-phys' ? 'phys' : null;
-    const readSensor = (
-      sensor: SensorDef,
-      w: { x: number; y: number },
-      axisWorld: [number, number, number],
-    ) => {
-      if (modelKind && measured) {
-        const dMm = signedLateralDistance(path, w.x, w.y) * 1000;
-        const v = evalMeasured(measured.dataset, measured.fits, modelKind, sensor.name, sensor.axisPreset, dMm, {
-          hM: sensor.h,
-          axis: axisVector(sensor),
-          I,
-          k: kCal,
-        });
-        if (v !== null) return v;
-      }
-      const [bx, by, bz] = computeB(w.x, w.y, sensor.h, fieldElements, I);
-      return kCal * Math.abs(bx * axisWorld[0] + by * axisWorld[1] + bz * axisWorld[2]);
-    };
-
-    interface Cand {
-      kp: number;
-      kd: number;
-      J: number;
-      timeS: number;
+    const sampler = createSensorSampler({
+      path,
+      elements: fieldElements,
+      currentMa: params.currentMa,
+      k: kCal,
+      sourceKind,
+      measured,
+    });
+    const sim = new Simulator({
+      path,
+      sensors,
+      vehicle: {
+        controller: new FormulaController(tracking, trackFormula),
+        sampler,
+        params: tracking,
+      },
+      tasks: [{ periodMs: tracking.dtMs, entry: 'control' }],
+      closed: trackClosed,
+    });
+    // 网格搜索与轨迹形状评价已迁入 sim/autotune.ts（生成器逐候选 yield 进度）；
+    // 分块让出事件循环留在 UI 侧：每 8 个候选 setTimeout(0) 一次
+    const gen = autoTuneGrid({
+      simulator: sim,
+      baseParams: tracking,
+      path,
+      segSpans,
+      kpMax,
+      kdMax,
+      eInMaxMm,
+    });
+    let r = gen.next();
+    while (!r.done) {
+      onProgress(r.value.done, r.value.total);
+      if (r.value.done % 8 === 0) await new Promise((res) => window.setTimeout(res, 0));
+      r = gen.next();
     }
-    const score = (kp: number, kd: number): Cand | null => {
-      const r = simulateTracking({
-        path,
-        sensors,
-        params: { ...tracking, kp, kd },
-        formula: trackFormula,
-        readSensor,
-        closed: trackClosed,
-      });
-      if (r.status !== 'finished') return null; // 失控/步数上限不可行
-      const n = Math.max(1, r.finishIndex + 1);
-      // 逐轨迹点按所在中线段类型分类评价（局部最近点查询，轨迹连续 O(窗口)）
-      const seek = createNearestSeeker(path);
-      let sumLine = 0;
-      let cntLine = 0;
-      let sumOut = 0;
-      let sumInX = 0;
-      let cntArc = 0;
-      let sumJit = 0;
-      for (let i = 0; i < n; i++) {
-        const { s, e } = seek(r.x[i], r.y[i]);
-        const span = segSpans.find((sp) => s <= sp.endS + 1e-9) ?? segSpans[segSpans.length - 1];
-        if (!span || span.kind === 'line') {
-          sumLine += e * e; // 直线段：罚横向偏差
-          cntLine++;
-        } else {
-          // 弯道段：内收（弯心侧）≤ e_in_max 不罚；外偏 2 倍罚（外偏量平方见 J 组合）
-          const inward = span.turn === 'right' ? e : -e; // >0 = 弯心侧
-          const eOut = Math.max(0, -inward);
-          const eInX = Math.max(0, inward - eInMaxM); // 内收超上限部分罚 1 倍
-          sumOut += eOut * eOut;
-          sumInX += eInX * eInX;
-          cntArc++;
-        }
-        if (i >= 1 && i <= n - 2) {
-          // 航向抖动：相邻步 Δθ 二阶差分（突变/振荡），按最短弧
-          const j2 = wrapAngle(r.theta[i + 1] - 2 * r.theta[i] + r.theta[i - 1]);
-          sumJit += j2 * j2;
-        }
-      }
-      const rms = (s2: number, c: number) => Math.sqrt(s2 / Math.max(1, c));
-      const J =
-        rms(sumLine, cntLine) +
-        2 * rms(sumOut, cntArc) +
-        rms(sumInX, cntArc) +
-        0.5 * rms(sumJit, Math.max(1, n - 2));
-      return { kp, kd, J, timeS: r.t[r.finishIndex] ?? r.timeS };
-    };
-    const better = (a: Cand, b: Cand | null): boolean =>
-      !b || a.J < b.J - 1e-9 || (Math.abs(a.J - b.J) <= 1e-9 && a.timeS < b.timeS);
-
-    // 粗搜 13×11，局部细化 9×9
-    const KP_N = 13;
-    const KD_N = 11;
-    const TOTAL = KP_N * KD_N + 81;
-    let done = 0;
-    let best: Cand | null = null;
-    const yieldUI = async () => {
-      done++;
-      if (done % 8 === 0) {
-        onProgress(done, TOTAL);
-        await new Promise((r) => window.setTimeout(r, 0));
-      }
-    };
-    for (let i = 0; i < KP_N; i++) {
-      const kp = (kpMax * i) / (KP_N - 1);
-      for (let j = 0; j < KD_N; j++) {
-        const kd = (kdMax * j) / (KD_N - 1);
-        const c = score(kp, kd);
-        if (c && better(c, best)) best = c;
-        await yieldUI();
-      }
-    }
-    if (best) {
-      const kpStep = kpMax / (KP_N - 1);
-      const kdStep = kdMax / (KD_N - 1);
-      const b0 = best;
-      for (let i = -4; i <= 4; i++) {
-        const kp = Math.max(0, b0.kp + (i * kpStep) / 4);
-        for (let j = -4; j <= 4; j++) {
-          const kd = Math.max(0, b0.kd + (j * kdStep) / 4);
-          const c = score(kp, kd);
-          if (c && better(c, best)) best = c;
-          await yieldUI();
-        }
-      }
-    }
-    onProgress(TOTAL, TOTAL);
-    return best ? { kp: best.kp, kd: best.kd } : null;
+    return r.value;
   };
+
+  // ---------------- 实时模式（Phase 12 FR-8）：rAF 驱动 simulator.step()，播放状态为会话内 useState（不入 appState） ----------------
+  const [simMode, setSimMode] = useState<'fast' | 'realtime'>('fast');
+  const [rtPlaying, setRtPlaying] = useState(false);
+  const [rtSpeed, setRtSpeed] = useState(1);
+  const [rtVersion, setRtVersion] = useState(0);
+
+  const rtSim = useMemo(() => {
+    if (simMode !== 'realtime') return null;
+    const d = trackingDepsRef.current;
+    if (!d.tracking.enabled || d.path.s.length === 0 || d.sensors.length === 0) return null;
+    const sampler = createSensorSampler({
+      path: d.path,
+      elements: d.elements,
+      currentMa: d.currentMa,
+      k: d.k,
+      sourceKind: d.sourceKind,
+      measured: d.measured,
+    });
+    return new Simulator({
+      path: d.path,
+      sensors: d.sensors,
+      vehicle: {
+        controller: new FormulaController(d.tracking, d.formula),
+        sampler,
+        params: d.tracking,
+      },
+      tasks: [{ periodMs: d.tracking.dtMs, entry: 'control' }],
+      closed: trackClosed,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackingTick, simMode]);
+
+  // 参数/赛道变化（rtSim 重建）或切模式时停止播放
+  useEffect(() => {
+    setRtPlaying(false);
+  }, [rtSim]);
+
+  // rAF 驱动：墙钟 × 倍速经整数 µs 累加器折算 tick 数（不引入浮点时间漂移），单帧封顶防卡顿螺旋
+  useEffect(() => {
+    if (!rtPlaying || !rtSim) return;
+    let raf = 0;
+    let last = performance.now();
+    let accUs = 0;
+    const dtUs = Math.max(1, Math.round(rtSim.stepMs * 1000));
+    const tick = (now: number) => {
+      accUs += (now - last) * 1000 * rtSpeed;
+      last = now;
+      let n = Math.floor(accUs / dtUs);
+      accUs -= n * dtUs;
+      n = Math.min(n, 5000);
+      let done = false;
+      for (let i = 0; i < n; i++) {
+        if (rtSim.step().done) {
+          done = true;
+          break;
+        }
+      }
+      setRtVersion((v) => v + 1);
+      if (done) setRtPlaying(false);
+      else raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [rtPlaying, rtSim, rtSpeed]);
+
+  // 实时模式的活体结果包装（数组引用共享 Simulator 记录，随 rtVersion 重渲染）
+  const rtResult: TrackingResult | null = useMemo(() => {
+    if (!rtSim) return null;
+    void rtVersion;
+    const r = rtSim.result;
+    const steps = r.t.length;
+    return {
+      ...r,
+      steps,
+      timeS: (steps * rtSim.stepMs) / 1000,
+      distM: rtSim.distM,
+      finishIndex: steps - 1,
+    };
+  }, [rtSim, rtVersion]);
+
+  const panelResult = simMode === 'realtime' ? rtResult : trackingResult;
 
   // ---------------- 自由铺设 ----------------
   const tip = useMemo(() => trackTip(trackDef.segments), [trackDef.segments]);
@@ -866,21 +856,11 @@ export default function Home() {
     [trackDef.segments, trackClosed],
   );
 
-  // 各段弧长区间与类型（数学模型.md §8.6 一键调 PID 轨迹形状评价：直线段 / 弯道段分类）
-  const segSpans = useMemo(() => {
-    const spans: { endS: number; kind: 'line' | 'arc'; turn?: 'left' | 'right' }[] = [];
-    let acc = 0;
-    for (const seg of trackDef.segments) {
-      acc += segmentLength(seg);
-      spans.push({ endS: acc, kind: seg.kind, turn: seg.kind === 'arc' ? seg.turn : undefined });
-    }
-    if (trackClosed) {
-      // 闭环吸合段按直线段处理
-      acc += Math.max(0, path.length - acc);
-      spans.push({ endS: acc, kind: 'line' });
-    }
-    return spans;
-  }, [trackDef.segments, trackClosed, path.length]);
+  // 各段弧长区间与类型（数学模型.md §8.6 一键调 PID 轨迹形状评价：构建已迁入 sim/autotune.ts）
+  const segSpans = useMemo(
+    () => buildSegSpans(trackDef.segments, trackClosed, path.length),
+    [trackDef.segments, trackClosed, path.length],
+  );
 
   // ---------------- 折线图点击联动车位（程序设计说明.md §3.6） ----------------
   // 全程扫描图：切手动位姿并设 s（e/ψ 保持当前值）
@@ -1224,13 +1204,14 @@ export default function Home() {
             computePct={progress}
             segLabels={segLabels}
             tracking={
-              trackingResult
+              panelResult
                 ? {
                     // 轨迹画到冲线点（首次跑满全长）；容差段为失控保护，不展示
-                    x: trackingResult.x.slice(0, trackingResult.finishIndex + 1),
-                    y: trackingResult.y.slice(0, trackingResult.finishIndex + 1),
-                    endTheta: trackingResult.theta[trackingResult.finishIndex] ?? 0,
-                    status: trackingResult.status,
+                    // 实时模式：finishIndex 随仿真推进（= 当前步），逐帧生长
+                    x: panelResult.x.slice(0, panelResult.finishIndex + 1),
+                    y: panelResult.y.slice(0, panelResult.finishIndex + 1),
+                    endTheta: panelResult.theta[panelResult.finishIndex] ?? 0,
+                    status: panelResult.status,
                   }
                 : null
             }
@@ -1329,7 +1310,7 @@ export default function Home() {
               <TrackingPanel
                 params={tracking}
                 onChange={setTracking}
-                result={trackingResult}
+                result={panelResult}
                 formulaError={formulaError}
                 sensorNames={sensors.map((s) => s.name)}
                 onExport={doExportTracking}
@@ -1337,6 +1318,21 @@ export default function Home() {
                 ranges={trackingRanges}
                 onRangeChange={handleRangeChange}
                 onChartPointClick={handleTrajPointClick}
+                playback={{
+                  mode: simMode,
+                  onModeChange: setSimMode,
+                  playing: rtPlaying,
+                  speed: rtSpeed,
+                  done: rtSim?.done ?? false,
+                  available: rtSim !== null,
+                  onPlayPause: () => setRtPlaying((p) => !p),
+                  onReset: () => {
+                    rtSim?.reset();
+                    setRtPlaying(false);
+                    setRtVersion((v) => v + 1);
+                  },
+                  onSpeedChange: setRtSpeed,
+                }}
               />
             }
           />

@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "selfcheck": "tsx scripts/selfcheck.ts",
     "selfcheck:measured": "tsx scripts/selfcheck-measured.ts",
-    "selfcheck:tracking": "tsx scripts/selfcheck-tracking.ts"
+    "selfcheck:tracking": "tsx scripts/selfcheck-tracking.ts",
+    "selfcheck:sim": "tsx scripts/selfcheck-sim.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

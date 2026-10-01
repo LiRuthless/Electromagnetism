@@ -1,12 +1,12 @@
 # Phase 12: 仿真器架构分层 — 验证
 
-> 新增自检脚本约定放 `em-field-studio/scripts/`（现有 `test-*.ts` / `selfcheck-*.ts` 风格，Node/tsx 直跑 `src/mathmodel/`）：本 Phase 新增 `scripts/selfcheck-sim.ts`（`npm run selfcheck:sim`）与基线生成脚本 `scripts/gen-tracking-baseline.ts`。V-n 编号按下表。
+> 新增自检脚本 `em-field-studio/scripts/selfcheck-sim.ts`（`npm run selfcheck:sim`，Node/tsx 直跑 `src/mathmodel/`）；脚本内编号 [1]–[4] 依次对应 V-1 / V-2 / V-3 / V-5（V-4 = 既有三组自检 + 构建，不在脚本内）。基线生成脚本 `scripts/gen-tracking-baseline.ts` 已于重构前运行一次（Group 0，基线 commit 5d263d47），产物 `scripts/fixtures/tracking-baseline.json` 入库。**2026-10-01 全部自动化项实测通过：V-1 逐点偏差 = 0（位精确一致）。**
 
 ## 验证清单（Scorecard）
 
 | # | 检查项 | 方法 | 通过标准 | 关联需求 |
 |---|---|---|---|---|
-| V-1 | 回归等价性（`Simulator.runToEnd()` vs 重构前基线） | 自动化 `selfcheck:sim` | 基线 fixture `scripts/fixtures/tracking-baseline.json`（重构前 `simulateTracking()` 生成，含直道收敛 + S 弯闭环两场景）：`runToEnd()` 轨迹 t/x/y/θ/vL/vR/err/sensorU **逐点一致**，最大偏差 < 1e-12（预期 0）；status / steps / distM / finishIndex 完全一致 | FR-4, FR-6, TC-5 |
+| V-1 | 回归等价性（`Simulator.runToEnd()` vs 重构前基线） | 自动化 `selfcheck:sim`（脚本 [1]） | 基线 fixture `scripts/fixtures/tracking-baseline.json`（重构前 `simulateTracking()` 生成，含直道收敛 + S 弯两场景（均非闭环，与 selfcheck-tracking [4]/[6]b 同构）：`runToEnd()` 轨迹 t/x/y/θ/vL/vR/err/sensorU **逐点一致**，最大偏差 < 1e-12（2026-10-01 实测 = 0，位精确一致）；status / steps / distM / finishIndex 完全一致 | FR-4, FR-6, TC-5 |
 | V-2 | 多速率调度正确性 | 自动化 `selfcheck:sim`（合成测试：物理步长 1 ms + 控制周期 5 ms） | (a) 1000 个 tick 内控制任务触发**恰好 200 次**；(b) 零阶保持：相邻触发之间的 4 个 tick 沿用同一指令（`WheelCommand` 引用/数值不变）；(c) 整数 µs 时间轴：仿真 1000 s（1e6 tick）后时钟读数严格 = 1e9 µs、第 k 次触发时刻严格 = 5k ms，无浮点漂移；(d) 过期合并：`periodMs < dtSim` 误配时每 tick 至多触发一次且不补触发 | FR-2, TC-1 |
 | V-3 | FormulaController 等价性 | 自动化 `selfcheck:sim` | 同一读数序列喂给 `FormulaController.step()` 与直调 `compileFormula()`+`pdOutput()`+`wheelSpeeds()` 内联序列，逐步 `WheelCommand`（vLCmd/vRCmd/err）完全一致（== 或 < 1e-12）；含首步 errRate=0、分母零回退上一步误差、限幅 [0, vMax] 三个边界 | FR-1 |
 | V-4 | 既有三组自检 + 构建 | 自动化 | `npm run selfcheck`、`npm run selfcheck:measured`、`npm run selfcheck:tracking`（调用点不动的兼容薄壳）全过；`npm run build` 类型检查 + 构建通过 | FR-6, TC-5 |
@@ -18,10 +18,11 @@
 
 | 命令 | 判据 |
 |---|---|
-| `npm run selfcheck:sim`（新增） | 上述 V-1 / V-2 / V-3 / V-5 全部 PASS，进程退出码 0 |
+| `npm run selfcheck:sim`（新增） | 上述 V-1 / V-2 / V-3 / V-5 全部 PASS，进程退出码 0（末行输出"仿真器架构分层自检全部通过 ✓"） |
 | `npm run selfcheck`、`npm run selfcheck:measured`、`npm run selfcheck:tracking` | 既有三组自检全过（动 `src/mathmodel/` 后的硬性要求；`selfcheck:tracking` 调用点不变即兼容薄壳的回归防护） |
 | `npm run build` | 类型检查 + 构建通过 |
-| `npx tsx scripts/gen-tracking-baseline.ts` | **仅重构动刀前运行一次**（Group 0），产物提交后不再重跑——重跑会失去"重构前基线"语义 |
+| `npm run lint` | 不新增任何问题（2026-10-01 实测 27 problems / 18 errors 全部为 `components/ui/*` 等 Phase 12 前既有遗留；本 Phase 顺带修复了 Home.tsx 的 2 个 `_dropped` 未用变量 error 与 1 个失效 eslint-disable） |
+| `npx tsx scripts/gen-tracking-baseline.ts` | **仅重构动刀前运行一次**（Group 0，已执行并提交），产物提交后不再重跑——重跑会失去"重构前基线"语义 |
 
 ## 人工验证步骤
 

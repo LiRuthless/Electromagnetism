@@ -1,6 +1,6 @@
 # Phase 12: 仿真器架构分层 — 实现计划
 
-> 本规约为全新设计（绿地正向，2026-10-01 与用户访谈确认设计要点后起草）。本 Phase 为**架构等价重构**：原则上不新增、不修改任何物理公式与数值行为，全部状态标记为 ⬜（待实现）。
+> 本规约为全新设计（绿地正向，2026-10-01 与用户访谈确认设计要点后起草；**同日实现落地**，复选框已勾选）。本 Phase 为**架构等价重构**：原则上不新增、不修改任何物理公式与数值行为。
 
 ## 目标
 
@@ -21,39 +21,41 @@ $$\text{前端（可视化/交互）}\leftrightarrow\text{纯数据 I/O}\leftrig
 ## 任务分组（Task Groups）
 
 ### Group 0: 回归基线 fixture（重构动刀之前）
-- [ ] 新增 `scripts/gen-tracking-baseline.ts`：用**重构前**的 `simulateTracking()` 在固定赛道/参数组合（直道收敛场景 + S 弯闭环场景，与 selfcheck-tracking [4]/[6] 同构）上生成轨迹基线 JSON（t/x/y/θ/vL/vR/err/sensorU 全数组 + status/steps/distM），输出 `scripts/fixtures/tracking-baseline.json` 并提交
-- [ ] 基线 JSON 头记录生成时的 git 提交哈希与参数快照，供追溯
+- [x] 新增 `scripts/gen-tracking-baseline.ts`：用**重构前**的 `simulateTracking()` 在固定赛道/参数组合（直道收敛场景 + S 弯场景，均非闭环，与 selfcheck-tracking [4]/[6]b 同构）上生成轨迹基线 JSON（t/x/y/θ/vL/vR/err/sensorU 全数组 + status/steps/distM），输出 `scripts/fixtures/tracking-baseline.json` 并提交
+- [x] 基线 JSON 头记录生成时的 git 提交哈希与参数快照，供追溯
 
 ### Group 1: 控制器接口与内置控制器（`src/mathmodel/sim/controller.ts`）
-- [ ] `CarController` 接口：`init()` / `step(readings: SensorReadings): WheelCommand` / `reset()`；`SensorReadings` / `WheelCommand` 纯数据类型定义
-- [ ] `FormulaController`：把现有 `compileFormula()` + `pdOutput()` + `wheelSpeeds()` 包装为内置控制器（误差回退上一步、首步 errRate = 0、限幅等语义逐行对齐 `simulateTracking()` 内联实现），作兜底与对照组
+- [x] `CarController` 接口：`init()` / `step(readings: SensorReadings): WheelCommand` / `reset()`；`SensorReadings` / `WheelCommand` 纯数据类型定义
+- [x] `FormulaController`：把现有 `compileFormula()` + `pdOutput()` + `wheelSpeeds()` 包装为内置控制器（误差回退上一步、首步 errRate = 0、限幅等语义逐行对齐 `simulateTracking()` 内联实现），作兜底与对照组
 
 ### Group 2: 多速率周期任务调度器（`src/mathmodel/sim/scheduler.ts`）
-- [ ] 任务表 `[{ periodMs, entry }]` 按注册序执行；物理积分步长 dtSim 与控制任务周期分离
-- [ ] 整数微秒时间轴（防浮点漂移）；任务到周期触发，控制指令在两个 tick 间零阶保持
-- [ ] 现有行为 = 单任务 `periodMs = dtMs` 的特例（等价性由 V-1/V-2 防护）
+- [x] 任务表 `[{ periodMs, entry }]` 按注册序执行；物理积分步长 dtSim 与控制任务周期分离
+- [x] 整数微秒时间轴（防浮点漂移）；任务到周期触发，控制指令在两个 tick 间零阶保持
+- [x] 现有行为 = 单任务 `periodMs = dtMs` 的特例（等价性由 V-1/V-2 防护）
 
 ### Group 3: 虚拟整车（`src/mathmodel/sim/vehicle.ts`）
-- [ ] 读数采样器工厂 `createSensorSampler()`：收敛 Home.tsx 三处重复闭包为单一实现（仿真源/实测源回退 + `k·|B·n̂|`），入参为纯数据（path / elements / sensors / currentMa / k / sourceKind / measured）
-- [ ] `Vehicle`：按当前位姿采样电感读数、持有控制器、电机一阶滞后（复用 `motorLag()`）、运动学积分（复用 `stepCar()`）
+- [x] 读数采样器工厂 `createSensorSampler()`：收敛 Home.tsx 三处重复闭包为单一实现（仿真源/实测源回退 + `k·|B·n̂|`），入参为纯数据（path / elements / sensors / currentMa / k / sourceKind / measured）
+- [x] `Vehicle`：按当前位姿采样电感读数、持有控制器、电机一阶滞后（复用 `motorLag()`）、运动学积分（复用 `stepCar()`）
 
 ### Group 4: Simulator 门面（`src/mathmodel/sim/simulator.ts`）与兼容薄壳
-- [ ] `Simulator`：`reset(params)` / `step(dtMs)`（实时逐帧，返回当帧快照）/ `runToEnd()`（快进一次算全程，返回 `TrackingResult`）
-- [ ] 终止条件沿用式 [(8.10)](../05-tracking-control/requirements.md#eq-8-10)：闭环一圈 / 非闭环 +0.5 m / 失控判停 / 步数上限 100000 / 位姿 NaN 判失控
-- [ ] `kinematics.ts` 的 `simulateTracking()` 改为 `Simulator.runToEnd()` 的兼容薄壳（**保持签名与 `TrackingResult` 结构不变**，`scripts/selfcheck-tracking.ts` 调用点不动——选择薄壳方案，理由见"风险与取舍"）
+- [x] `Simulator`：`reset(params)` / `step(dtMs)`（实时逐帧，返回当帧快照）/ `runToEnd()`（快进一次算全程，返回 `TrackingResult`）
+- [x] 终止条件沿用式 [(8.10)](../05-tracking-control/requirements.md#eq-8-10)：闭环一圈 / 非闭环 +0.5 m / 失控判停 / 步数上限 100000 / 位姿 NaN 判失控
+- [x] `kinematics.ts` 的 `simulateTracking()` 改为 `Simulator.runToEnd()` 的兼容薄壳（**保持签名与 `TrackingResult` 结构不变**，`scripts/selfcheck-tracking.ts` 调用点不动——选择薄壳方案，理由见"风险与取舍"）
 
 ### Group 5: 一键调 PID 迁入模型层（`src/mathmodel/sim/autotune.ts`）
-- [ ] 网格搜索（粗搜 13×11 + 邻域 9×9）、式 [(8.11)](../05-tracking-control/requirements.md#eq-8-11) 轨迹形状贴合目标函数、`createNearestSeeker` 局部最近点评价、`segSpans` 段类型区间表构建，全部从 Home.tsx 迁入
-- [ ] 分块让出事件循环改为**生成器（Generator）接口**：模型层逐候选 `yield` 进度，UI 侧驱动分块；另提供同步排干包装供 Node 自检使用
+- [x] 网格搜索（粗搜 13×11 + 邻域 9×9）、式 [(8.11)](../05-tracking-control/requirements.md#eq-8-11) 轨迹形状贴合目标函数、`createNearestSeeker` 局部最近点评价、`segSpans` 段类型区间表构建，全部从 Home.tsx 迁入
+- [x] 分块让出事件循环改为**生成器（Generator）接口**：模型层逐候选 `yield` 进度，UI 侧驱动分块；另提供同步排干包装供 Node 自检使用
 
 ### Group 6: Home.tsx 瘦身与实时模式 UI
-- [ ] 删除三处重复读数闭包（改调 `createSensorSampler()`）、删除 `runAutoTune`（改调 `sim/autotune.ts`）；保留状态编排与持久化
-- [ ] 实时模式：rAF 驱动 `simulator.step()`，循迹控制区加运行 / 暂停 / 重置 / 倍速（0.25×–4×）播放控制；播放状态为会话内 `useState`，不入 appState
-- [ ] 快进模式保留现有行为：参数变化防抖 ~200ms 重算 + 轨迹滑块回放
+- [x] 删除三处重复读数闭包（改调 `createSensorSampler()`）、删除 `runAutoTune`（改调 `sim/autotune.ts`）；保留状态编排与持久化
+- [x] 实时模式：rAF 驱动 `simulator.step()`，循迹控制区加运行 / 暂停 / 重置 / 倍速（0.25×–4×）播放控制；播放状态为会话内 `useState`，不入 appState
+- [x] 快进模式保留现有行为：参数变化防抖 ~200ms 重算 + 轨迹滑块回放
 
 ### Group 7: 自检与验证
-- [ ] 新增 `scripts/selfcheck-sim.ts`（`npm run selfcheck:sim`）：V-1 基线逐点比对、V-2 调度器合成测试、V-3 FormulaController 等价、V-5 一键调 PID 迁移等价
-- [ ] 既有三组自检（selfcheck / selfcheck:measured / selfcheck:tracking）+ `npm run build` 全过（V-4）
+- [x] 新增 `scripts/selfcheck-sim.ts`（`npm run selfcheck:sim`）：V-1 基线逐点比对、V-2 调度器合成测试、V-3 FormulaController 等价、V-5 一键调 PID 迁移等价
+- [x] 既有三组自检（selfcheck / selfcheck:measured / selfcheck:tracking）+ `npm run build` 全过（V-4）
+
+（实际实现日期：2026-10-01 全部落地。实现与规约的两处细节偏差已回填 requirements.md：① `Simulator.reset()` 参数为完整 `TrackingParams` 而非 `Partial`；② `autoTuneGrid` 的 opts 增补 `path` / `segSpans` 字段（评价器必需，原规约接口块遗漏）。V-1 实测逐点偏差 = 0（位精确一致），优于 < 1e-12 的通过标准。）
 
 ## 实现顺序与依赖
 
