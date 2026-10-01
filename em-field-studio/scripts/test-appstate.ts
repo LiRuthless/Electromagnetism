@@ -68,6 +68,8 @@ const sample = {
   // v6 新增：折线图浮动状态 + 循迹滑块自定义量程
   floatingCharts: { sweep: { floating: true, x: 40, y: 30, w: 460, h: 300 } },
   trackingRanges: { kp: { min: 0, max: 50 } },
+  // Phase 13：WASM 控制器来源文件名（字节不持久化）
+  wasmController: { fileName: 'pd_controller.wasm' },
 } as const;
 
 console.log('[A] 保存 -> 读取 往返一致');
@@ -87,6 +89,7 @@ check('arcPending / view 一致', s1?.arcPending.radiusMm === 300 && s1.arcPendi
 check('v6 floatingCharts / trackingRanges 一致',
   s1?.floatingCharts.sweep?.floating === true && s1.floatingCharts.sweep.w === 460 &&
   s1.trackingRanges.kp?.max === 50);
+check('wasmController.fileName 一致（Phase 13）', s1?.wasmController.fileName === 'pd_controller.wasm');
 
 console.log('[B] 版本不匹配 -> null（回退默认，不崩溃）');
 localStorage.setItem(
@@ -125,6 +128,14 @@ check('vppAnchor 回退 6', s4?.vppAnchor === 6);
 check('sourceKind 回退 simulation', s4?.sourceKind === 'simulation');
 check('component 回退 bz', s4?.params.component === 'bz');
 check('非法 view -> null', s4?.view === null);
+
+console.log('[D2] wasmController 缺失/非法 -> 逐字段回退 null（不升版本，Phase 13 FR-11）');
+localStorage.setItem(APP_STATE_KEY, JSON.stringify({ ...sample, wasmController: undefined }));
+check('缺字段 -> fileName null', loadAppState()?.wasmController.fileName === null);
+localStorage.setItem(APP_STATE_KEY, JSON.stringify({ ...sample, wasmController: { fileName: 42 } }));
+check('非法 fileName -> null', loadAppState()?.wasmController.fileName === null);
+localStorage.setItem(APP_STATE_KEY, JSON.stringify({ ...sample, wasmController: 'nonsense' }));
+check('非对象 -> null 且不崩溃', loadAppState()?.wasmController.fileName === null);
 
 console.log('[E] clearAppState 只清工作状态 key');
 localStorage.setItem('em-field-studio/track-library', '[{"name":"keep"}]');

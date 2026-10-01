@@ -29,6 +29,14 @@ export interface WheelCommand {
   err?: number;
 }
 
+/** 宿主注入接口（Phase 13 WASM 控制器）：Simulator 构造时绑定最新读数与整车运动学真值 */
+export interface ControllerHost {
+  /** 当前 tick 采样读数（任务触发时非 null） */
+  getReadings(): SensorReadings | null;
+  /** 整车真值：实际轮速（电机滞后后）、轮距（m）、仿真时钟（ms） */
+  getDynamics(): { vL: number; vR: number; wheelBase: number; tMs: number };
+}
+
 /** 车载控制器接口（Phase 13 WASM 控制器的宿主插桩点） */
 export interface CarController {
   /** 载入/初始化（幂等） */

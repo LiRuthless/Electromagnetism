@@ -71,12 +71,13 @@
 - 规模：large
 - 前置依赖：Phase 12 的 CarController 接口与调度器
 - 功能规约：`specs/features/13-wasm-controller/`
+- 进度（2026-10-01）：代码与模板工程已实现（selfcheck:wasm 的 V-2/V-3 全过、既有自检与 build 回归全过）；**fixture `scripts/fixtures/pd_controller.wasm` 待本机 clang 跑 controller-template/build.bat 生成入库后补验 V-1**，故本阶段保持未勾
 
 ## 当前状态
 
-- 已完成：Phase 01–09（电磁场建模仿真工具 0.1.0，2026-08-15 版 exe 已发布；Simulink 移植 2026-09 落地）；Phase 12（2026-10-01 仿真器架构分层落地，等价重构零偏差）
+- 已完成：Phase 01–09（电磁场建模仿真工具 0.1.0，2026-08-15 版 exe 已发布；Simulink 移植 2026-09 落地）；Phase 12（2026-10-01 仿真器架构分层落地，等价重构零偏差）；Phase 13 代码部分（2026-10-01 WASM 车载控制器落地，selfcheck:wasm V-2/V-3 全过）
 - 进行中：无代码阶段——等待用户执行实验建模（[`specs/research/2026-08-13-experiment-modeling.md`](research/2026-08-13-experiment-modeling.md)，🧪 三类九项实验，按实验 1→2→3→6/7→4/5→8/9 依赖顺序）
-- 下一步：Phase 10（待实验 9 数据到位）；Phase 11 仍为预留方向；Phase 13（WASM 车载控制器）规约先行——依赖 Phase 12 的 CarController 接口与调度器（已就绪）
+- 下一步：Phase 13 收尾（本机 clang 生成 `scripts/fixtures/pd_controller.wasm` 补验 V-1 后勾选）；Phase 10（待实验 9 数据到位）；Phase 11 仍为预留方向
 
 ## 已合并/已取消的计划
 

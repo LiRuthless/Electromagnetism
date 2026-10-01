@@ -1,10 +1,10 @@
 # Phase 13: WASM 车载控制器 — 需求
 
-> 本规约为全新设计（2026-10-01 立项），全部条目标记 ⬜ 待实现；涉及用户真实 wasm 上车实测的条目标记 🧪。PWM→轮速映射为本规约自定方案（式 [(13.1)](#eq-13-1)），已显式声明。
+> 本规约为全新设计（2026-10-01 立项并落地实现）：FR-1 ~ FR-11 已实现（✅）；FR-12 真实 wasm 上车实测为 🧪 待实操。PWM→轮速映射为本规约自定方案（式 [(13.1)](#eq-13-1)），已显式声明。
 
 ## 功能需求
 
-### FR-1　WASM 控制器定位与闭环角色（⬜）
+### FR-1　WASM 控制器定位与闭环角色（✅）
 
 用户的真实车载 C 控制代码（两份不同 MCU 的代码、算法会持续更换）编译为 WASM 后载入仿真器，作为"虚拟整车的车载程序"参与循迹闭环，替代内置公式控制器的"误差公式 + PD + 差速分配"环节。闭环信号流变为：
 
@@ -12,7 +12,7 @@ $$\text{位姿}(x,y,\theta)\to\text{电感读数/IMU/编码器}\to\text{wasm 周
 
 即 wasm 控制器接管到"轮速指令"为止，**指令 → 限幅 → 电机一阶滞后 → 运动学积分**的后半段仍走 Phase 5 既有链路（式 [(8.5)](../05-tracking-control/requirements.md#eq-8-5)–[(8.9)](../05-tracking-control/requirements.md#eq-8-9)），终止条件（式 [(8.10)](../05-tracking-control/requirements.md#eq-8-10)）不变。一次只加载一份 wasm；改算法后重新上传即热替换（FR-10）。控制器来源 = 内置 FormulaController（默认兜底）/ wasm 二选一，由 Phase 12 的调度器按任务周期表统一触发（见 [`../12-simulator-architecture/`](../12-simulator-architecture/)）。
 
-### FR-2　wasm 导出任务入口（宿主调用，存在性探测）（⬜）
+### FR-2　wasm 导出任务入口（宿主调用，存在性探测）（✅）
 
 | 导出名 | 签名 | 语义 |
 |---|---|---|
@@ -22,7 +22,7 @@ $$\text{位姿}(x,y,\theta)\to\text{电感读数/IMU/编码器}\to\text{wasm 周
 
 宿主逐个做存在性探测：**缺哪个跳过哪个并报提示**；`ctrl_task_1ms` 与 `ctrl_task_2ms` 全缺视为无效控制器，拒绝加载并回退内置（FR-7）。任务周期表在 ABI 层面可扩展，**ABI v1 内固定这两个入口**——新增周期入口须升 ABI 版本（TC-4）。
 
-### FR-3　env 宿主导入函数表（wasm 调宿主）（⬜）
+### FR-3　env 宿主导入函数表（wasm 调宿主）（✅）
 
 全部 float32 参数与返回值，SI 单位（`set_motor_pwm` 为唯一例外，见 FR-6）：
 
@@ -38,7 +38,7 @@ $$\text{位姿}(x,y,\theta)\to\text{电感读数/IMU/编码器}\to\text{wasm 周
 
 明确**不支持**：malloc / printf / 文件 IO / 线程 / 异常。wasm 侧需要堆内存时以静态数组解决（freestanding 编译模型，见 FR-9）。
 
-### FR-4　math 兜底导入（⬜）
+### FR-4　math 兜底导入（✅）
 
 freestanding 编译（`-nostdlib`）时 libm 未解析符号由宿主提供，module 同为 `env`：
 
@@ -46,11 +46,11 @@ freestanding 编译（`-nostdlib`）时 libm 未解析符号由宿主提供，mo
 
 全部 float32 签名（`atan2f(y,x)` / `powf(x,y)` / `fmodf(x,y)` 为双参数，其余单参数），宿主直接映射 `Math.*` 对应函数后转 float32。
 
-### FR-5　ABI 版本管理（⬜）
+### FR-5　ABI 版本管理（✅）
 
 常量 `CTRL_ABI_VERSION = 1`（代码 `controllerAbi.ts`）。wasm 可导出同名符号（全局或函数）声明其编译所针对的 ABI 版本：版本不符时宿主拒绝加载并明确提示；未导出该符号的 wasm 按版本 1 宽容受理（模板工程生成的 wasm 均导出）。ABI 一旦发布，任何导入表 / 入口表 / 语义变更必须升版本，并同步 `controller-template/` 与自检 fixture（[`specs/techstack.md`](../../techstack.md) 硬性约束 6）；旧 ABI 的 wasm 仍可加载或明确报版本错误，**绝不静默误跑**。
 
-### FR-6　PWM→轮速映射（⬜，本规约自定方案，显式声明）
+### FR-6　PWM→轮速映射（✅，本规约自定方案，显式声明）
 
 `set_motor_pwm(left, right)` 的归一化指令（−1..1，**ABI 中唯一非 SI 例外**——对齐实车电机驱动的占空比直觉）按下式映射为指令轮速：
 
@@ -61,7 +61,7 @@ $$v_i^{cmd}=\text{clamp}\big(\text{clamp}(pwm_i,\,-1,\,1)\cdot v_{max},\;0,\;v_{
 
 物理意义：与内置控制器的"指令轮速 → 限幅 → 滞后"链路（式 [(8.3)](../05-tracking-control/requirements.md#eq-8-3)–[(8.7)](../05-tracking-control/requirements.md#eq-8-7) 后半段）完全同构，保证 wasm 与内置控制器在同一整车模型上对照公平。
 
-### FR-7　健壮性与回退（⬜）
+### FR-7　健壮性与回退（✅）
 
 以下任一情形 → 明确报错提示并回退内置 FormulaController，**绝不崩溃**（呼应 [`specs/techstack.md`](../../techstack.md) 硬性约束 3 的纪律精神）：
 
@@ -73,14 +73,14 @@ $$v_i^{cmd}=\text{clamp}\big(\text{clamp}(pwm_i,\,-1,\,1)\cdot v_{max},\;0,\;v_{
 
 回退后循迹仿真立即可用内置控制器继续跑，来源区显示回退原因。
 
-### FR-8　死循环防护（⬜）
+### FR-8　死循环防护（✅）
 
 wasm 与宿主同进程执行（用户已明确接受，非目标见 Worker 隔离），wasm 内部死循环**无法强杀**；防护仅为调度层沿用 `MAX_TRACKING_STEPS = 100000` 步数硬上限（式 [(8.10)](../05-tracking-control/requirements.md#eq-8-10) 链路既有判停）。本限制为已知取舍，写入规约显式声明。
 
-### FR-9　模板工程 `em-field-studio/controller-template/`（⬜）
+### FR-9　模板工程 `em-field-studio/controller-template/`（✅）
 
 - `controller_api.h`：env 导入声明（`__attribute__((import_module("env")))`）+ 入口约定（FR-2 签名与存在性探测语义）+ 单位约定注释（SI / pwm 归一化例外 / 通道顺序）；
-- `controller.c`：PD 循迹示例——`ctrl_task_1ms` 读 4 路 `read_adc` 缓存，`ctrl_task_2ms` 算差比和误差 → PD → `set_motor_pwm`，与内置默认公式式 [(8.1)](../05-tracking-control/requirements.md#eq-8-1) 同构以作 fixture 对照基准；
+- `controller.c`：PD 循迹示例——`ctrl_task_1ms` 读 4 路 `read_adc` 缓存，`ctrl_task_2ms` 算差比和误差 → PD → `set_motor_pwm`，与内置默认公式式 [(8.1)](../05-tracking-control/requirements.md#eq-8-1) 同构以作 fixture 对照基准（A=B=C=1；P_GAIN=−1 为默认 4 电感布局直道负反馈标定符号，对齐 selfcheck-tracking [4] 的 P=−1 结论）；
 - `build.bat`：clang freestanding 编译命令样例（`--target=wasm32 -nostdlib -Wl,--no-entry -Wl,--export=ctrl_init -Wl,--export=ctrl_task_1ms -Wl,--export=ctrl_task_2ms` 等）+ 注释说明 Emscripten 亦可但需 standalone 裁剪（去除 WASI 依赖）。
 
 模板工程是 ABI 的用户侧唯一权威文档；ABI 变更时同步更新（TC-4）。
@@ -92,7 +92,7 @@ wasm 与宿主同进程执行（用户已明确接受，非目标见 Worker 隔�
 - 重新上传即对当前控制器 reset 热替换（调用 `CarController.reset` + 重新 instantiate），轨迹按既有防抖 ~200ms 约定同步重算。
 - 重启后 wasm 字节不在（FR-11），来源区回退显示内置控制器并给"请重新上传"提示（若存档记录过文件名，则提示中带文件名）。
 
-### FR-11　appState 持久化（⬜）
+### FR-11　appState 持久化（✅）
 
 appState 只记录来源文件名（重启提示用），**不持久化 wasm 字节**。实现选择（自定，显式声明）：新增顶层字段 `wasmController: { fileName: string | null }`，缺失 / 非法时逐字段回退 `null`，**APP_STATE_VERSION 保持 6 不升**——理由同 motorTauMs 先例（[`specs/techstack.md`](../../techstack.md) 硬性约束 3）：新增字段对旧存档为未知键（旧版加载器忽略）、对旧存档缺该键时新版回退默认值，双向无损，无需升版本。`tracking` 内既有字段不受影响。
 

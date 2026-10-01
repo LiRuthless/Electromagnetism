@@ -15,13 +15,13 @@ import type { TrackingResult } from '../kinematics';
 import type { TrackingParams } from '../control';
 import type { SensorDef } from '../sensor';
 import type { PathSample } from '../track';
-import type { CarController, SensorReadings, WheelCommand } from './controller';
+import type { CarController, ControllerHost, SensorReadings, WheelCommand } from './controller';
 import { Scheduler } from './scheduler';
 import { Vehicle } from './vehicle';
 import type { SensorSampler } from './vehicle';
 
-/** 任务入口类别（首期仅控制任务一类） */
-export type SimTaskEntry = 'control';
+/** 任务入口类别：control = 内置控制器步进；task1ms/task2ms = WASM 控制器周期任务（Phase 13） */
+export type SimTaskEntry = 'control' | 'task1ms' | 'task2ms';
 
 /** 实时逐帧快照 */
 export interface SimFrame {
@@ -84,14 +84,34 @@ export class Simulator {
     this.scheduler = new Scheduler(Math.max(this.params.dtMs, 0.5), [
       ...opts.tasks.map((t) => ({ periodMs: t.periodMs, entry: () => this.runTask(t.entry) })),
     ]);
+    // Phase 13：控制器声明 attach 时注入宿主（最新读数 + 整车真值，供 wasm env 闭包取数）
+    const hc = this.controller as Partial<{ attach(host: ControllerHost): void }>;
+    hc.attach?.({
+      getReadings: () => this.pendingReadings,
+      getDynamics: () => ({
+        vL: this.vehicle.vLAct,
+        vR: this.vehicle.vRAct,
+        wheelBase: this.params.wheelBase,
+        tMs: this.scheduler.nowMs,
+      }),
+    });
     this.controller.init();
     this.rec = this.freshRec();
   }
 
   private runTask(entry: SimTaskEntry): void {
-    if (entry === 'control' && this.pendingReadings) {
-      this.cmd = this.controller.step(this.pendingReadings);
+    if (entry === 'control') {
+      if (this.pendingReadings) this.cmd = this.controller.step(this.pendingReadings);
+      return;
     }
+    // WASM 控制器周期任务（Phase 13）：env 闭包经 attach 的宿主取数，指令经 set_motor_pwm 回传；
+    // 本周期未写指令（返回 null）时保持上次指令（零阶保持）
+    const c = this.controller as Partial<{
+      runTask1ms(): WheelCommand | null;
+      runTask2ms(): WheelCommand | null;
+    }>;
+    const cmd = entry === 'task1ms' ? c.runTask1ms?.() : c.runTask2ms?.();
+    if (cmd) this.cmd = cmd;
   }
 
   private freshRec(): TrackingResult {

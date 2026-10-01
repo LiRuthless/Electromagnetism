@@ -1,6 +1,6 @@
 # Phase 13: WASM 车载控制器 — 实现计划
 
-> 本规约为全新设计（绿地正向，2026-10-01 依据用户访谈立项）。先规约后实现；与 Phase 12 [`../12-simulator-architecture/`](../12-simulator-architecture/) 同步立项，本文档假定其 `CarController` 接口与多速率调度器存在。
+> 本规约为全新设计（绿地正向，2026-10-01 依据用户访谈立项；2026-10-01 实现落地，fixture wasm 待本机 clang 生成）。与 Phase 12 [`../12-simulator-architecture/`](../12-simulator-architecture/) 同步立项，引用其 `CarController` 接口与多速率调度器（已落地，commit a9235de）。
 
 ## 目标
 
@@ -17,30 +17,32 @@
 ## 任务分组（Task Groups）
 
 ### Group 1: 控制器 ABI 定义（`src/mathmodel/sim/controllerAbi.ts`）
-- [ ] 常量 `CTRL_ABI_VERSION = 1`；wasm 可导出同名全局/函数声明版本，不匹配时拒绝加载并提示
-- [ ] wasm 导出入口表：`ctrl_init()` / `ctrl_task_1ms()` / `ctrl_task_2ms()`（存在性探测，缺哪个跳过哪个并报提示；两个任务入口全缺视为无效控制器）
-- [ ] env 导入函数表（全部 float32 参数与返回值、SI 单位）：`read_adc(ch)` / `read_gyro_z()` / `read_accel_x()` / `read_accel_y()` / `read_encoder_speed()` / `get_time_ms()` / `set_motor_pwm(left, right)`
-- [ ] math 兜底导入表：`sinf/cosf/tanf/asinf/acosf/atanf/atan2f/sqrtf/fabsf/powf/expf/logf/floorf/ceilf/fmodf`
-- [ ] PWM→轮速映射式 [(13.1)](requirements.md#eq-13-1)（归一化 → vMax 线性映射 → 循迹限幅 [0, vMax] → 电机一阶滞后）
+- [x] 常量 `CTRL_ABI_VERSION = 1`；wasm 可导出同名全局/函数声明版本，不匹配时拒绝加载并提示
+- [x] wasm 导出入口表：`ctrl_init()` / `ctrl_task_1ms()` / `ctrl_task_2ms()`（存在性探测，缺哪个跳过哪个并报提示；两个任务入口全缺视为无效控制器）
+- [x] env 导入函数表（全部 float32 参数与返回值、SI 单位）：`read_adc(ch)` / `read_gyro_z()` / `read_accel_x()` / `read_accel_y()` / `read_encoder_speed()` / `get_time_ms()` / `set_motor_pwm(left, right)`
+- [x] math 兜底导入表：`sinf/cosf/tanf/asinf/acosf/atanf/atan2f/sqrtf/fabsf/powf/expf/logf/floorf/ceilf/fmodf`
+- [x] PWM→轮速映射式 [(13.1)](requirements.md#eq-13-1)（归一化 → vMax 线性映射 → 循迹限幅 [0, vMax] → 电机一阶滞后）
 
 ### Group 2: WasmController 宿主（`src/mathmodel/sim/wasmController.ts`）
-- [ ] `WasmController` 实现 Phase 12 `CarController` 接口：`WebAssembly.instantiate(bytes, {env})`、任务入口存在性探测、env 函数闭包绑定当前 Vehicle 采样器
-- [ ] 健壮性：无效 wasm 字节 / 缺全部任务入口 / ABI 版本不符 / 运行时 trap → 明确报错并回退内置 FormulaController，绝不崩溃
-- [ ] 死循环防护：沿用 100000 步硬上限（同进程无法强杀 wasm，限制写入规约）
+- [x] `WasmController` 实现 Phase 12 `CarController` 接口：`WebAssembly.instantiate(bytes, {env})`、任务入口存在性探测、env 函数闭包绑定当前 Vehicle 采样器（`ControllerHost`，Simulator 构造时 attach）
+- [x] 健壮性：无效 wasm 字节 / 缺全部任务入口 / ABI 版本不符 / 运行时 trap → 明确报错并回退内置 FormulaController，绝不崩溃
+- [x] 死循环防护：沿用 100000 步硬上限（同进程无法强杀 wasm，限制写入规约 FR-8）
 
 ### Group 3: 模板工程（`em-field-studio/controller-template/`）
-- [ ] `controller_api.h`：env 导入声明（`__attribute__((import_module("env")))`）+ 入口约定注释 + 单位约定
-- [ ] `controller.c`：PD 循迹示例（读 4 路 ADC → 差比和误差 → PD → `set_motor_pwm`）
-- [ ] `build.bat`：clang freestanding 编译命令样例（`--target=wasm32 -nostdlib -Wl,--no-entry -Wl,--export=ctrl_init` 等）+ Emscripten standalone 裁剪说明注释
+- [x] `controller_api.h`：env 导入声明（`__attribute__((import_module("env")))`）+ 入口约定注释 + 单位约定
+- [x] `controller.c`：PD 循迹示例（读 4 路 ADC → 差比和误差 → PD → `set_motor_pwm`；P_GAIN=−1 对齐默认布局负反馈标定）
+- [x] `build.bat`：clang freestanding 编译命令样例（`--target=wasm32 -nostdlib -Wl,--no-entry -Wl,--export=ctrl_init` 等）+ Emscripten standalone 裁剪说明注释
 
 ### Group 4: 前端上传与热替换（`TrackingPanel.tsx`）
-- [ ] 循迹控制区新增控制器来源区：.wasm 文件选择器、当前来源显示（内置公式 / wasm 文件名 + ABI 版本）
-- [ ] 重新上传即 reset 热替换；加载失败提示并回退内置；重启后回退内置并显示"请重新上传"
+- [x] 循迹控制区新增控制器来源区：.wasm 文件选择器、当前来源显示（内置公式 / wasm 文件名 + ABI 版本）
+- [x] 重新上传即 reset 热替换；加载失败提示并回退内置；重启后回退内置并显示"请重新上传"
 
 ### Group 5: 持久化与自检 fixture
-- [ ] appState：新增字段只记来源文件名（提示用），逐字段回退默认值，**不升 APP_STATE_VERSION**（见 requirements.md TC-3 理由）
-- [ ] `scripts/selfcheck-wasm.ts`（tsx 直跑，npm script `selfcheck:wasm`）：fixture 一致性 / ABI 健壮性 / 多速率入口探测
-- [ ] fixture 流程：用户本机跑 `controller-template/build.bat` 生成 `scripts/fixtures/pd_controller.wasm` 后提交入库
+- [x] appState：新增字段只记来源文件名（提示用），逐字段回退默认值，**未升 APP_STATE_VERSION**（见 requirements.md TC-3 理由）
+- [x] `scripts/selfcheck-wasm.ts`（tsx 直跑，npm script `selfcheck:wasm`）：fixture 一致性 / ABI 健壮性 / 多速率入口探测（V-2/V-3 用编程构造的最小 wasm 字节，不依赖 clang）
+- [ ] fixture 流程：用户本机跑 `controller-template/build.bat` 生成 `scripts/fixtures/pd_controller.wasm` 后提交入库——**待用户执行（本机无 clang），V-1 在此之前明确报错**
+
+（实际实现日期：2026-10-01，Group 1–5 除 fixture 生成外全部落地）
 
 ## 实现顺序与依赖
 

@@ -34,6 +34,7 @@ import TrackEditor, {
 } from '../components/TrackEditor';
 import { Simulator } from '../mathmodel/sim/simulator';
 import { FormulaController } from '../mathmodel/sim/controller';
+import { WasmController } from '../mathmodel/sim/wasmController';
 import { createSensorSampler, createSensorSamplerDetailed } from '../mathmodel/sim/vehicle';
 import { autoTuneGrid, buildSegSpans } from '../mathmodel/sim/autotune';
 import type { CarPose, SensorDef, SensorReading } from '../mathmodel/sensor';
@@ -241,6 +242,15 @@ export default function Home() {
   const [trackingRanges, setTrackingRanges] = useState<TrackingRangesMap>(
     restored?.trackingRanges ?? {},
   );
+  // WASM 车载控制器（Phase 13）：控制器实例会话内持有（字节不持久化）；
+  // appState 只记文件名作重启"请重新上传"提示
+  const [wasmCtrl, setWasmCtrl] = useState<WasmController | null>(null);
+  const [wasmFileName, setWasmFileName] = useState<string | null>(
+    restored?.wasmController.fileName ?? null,
+  );
+  const [wasmError, setWasmError] = useState('');
+  // 重算 memo 内检测到的 trap 信息（setState 移到 effect，避免渲染期副作用）
+  const wasmTrapRef = useRef<string | null>(null);
   // 浮动层：portal 宿主元素 + z 序
   const [floatLayerEl, setFloatLayerEl] = useState<HTMLElement | null>(null);
   const { zOrder, bringToFront, ensure } = useFloatingZOrder();
@@ -319,6 +329,7 @@ export default function Home() {
         leftCollapsed,
         floatingCharts,
         trackingRanges,
+        wasmController: { fileName: wasmFileName },
       });
     }, 300);
     return () => window.clearTimeout(t);
@@ -342,6 +353,7 @@ export default function Home() {
     leftCollapsed,
     floatingCharts,
     trackingRanges,
+    wasmFileName,
   ]);
 
   // 恢复默认设置：仅清除工作状态 key，赛道库保持不变
@@ -367,6 +379,9 @@ export default function Home() {
     setLeftCollapsed(false);
     setFloatingCharts({});
     setTrackingRanges({});
+    setWasmCtrl(null);
+    setWasmFileName(null);
+    setWasmError('');
     setView(null);
     setResetCounter((c) => c + 1); // 重挂载画布 -> 回到自动 fit
     flash('已恢复默认设置');
@@ -562,6 +577,33 @@ export default function Home() {
     return () => window.clearTimeout(t);
   }, [path, fieldElements, sensors, params.currentMa, kCal, sourceKind, measured, tracking, trackFormula]);
 
+  // ---------------- WASM 车载控制器（Phase 13）：上传 / 热替换 / 回退内置 ----------------
+  const handleWasmUpload = useCallback(
+    async (file: File) => {
+      try {
+        const bytes = await file.arrayBuffer();
+        const ctrl = await WasmController.create(bytes, {
+          fileName: file.name,
+          sensorNames: sensors.map((s) => s.name),
+          vMax: tracking.vMax,
+        });
+        setWasmCtrl(ctrl);
+        setWasmFileName(file.name);
+        setWasmError('');
+      } catch (e) {
+        // FR-7：加载失败（无效字节/导入缺失/ABI 不符/入口全缺/init trap）→ 回退内置控制器
+        setWasmCtrl(null);
+        setWasmError(`「${file.name}」加载失败，已回退内置控制器：${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+    [sensors, tracking.vMax],
+  );
+  const handleWasmClear = useCallback(() => {
+    setWasmCtrl(null);
+    setWasmFileName(null);
+    setWasmError('');
+  }, []);
+
   const trackingResult: TrackingResult | null = useMemo(() => {
     const d = trackingDepsRef.current;
     if (!d.tracking.enabled || d.path.s.length === 0 || d.sensors.length === 0) return null;
@@ -573,20 +615,48 @@ export default function Home() {
       sourceKind: d.sourceKind,
       measured: d.measured,
     });
-    const sim = new Simulator({
-      path: d.path,
-      sensors: d.sensors,
-      vehicle: {
-        controller: new FormulaController(d.tracking, d.formula),
-        sampler,
-        params: d.tracking,
-      },
-      tasks: [{ periodMs: d.tracking.dtMs, entry: 'control' }],
-      closed: trackClosed, // 闭环赛道：行驶弧长达单圈总长即完赛（数学模型.md §4/数学模型.md §8.5）
-    });
-    return sim.runToEnd();
+    const buildFormulaSim = () =>
+      new Simulator({
+        path: d.path,
+        sensors: d.sensors,
+        vehicle: {
+          controller: new FormulaController(d.tracking, d.formula),
+          sampler,
+          params: d.tracking,
+        },
+        tasks: [{ periodMs: d.tracking.dtMs, entry: 'control' as const }],
+        closed: trackClosed, // 闭环赛道：行驶弧长达单圈总长即完赛（数学模型.md §4/数学模型.md §8.5）
+      });
+    if (wasmCtrl) {
+      // wasm 车载程序接管：任务周期表 1ms/2ms（存在的入口）；reset = 重新实例化全新状态
+      wasmCtrl.setSensorNames(d.sensors.map((s) => s.name));
+      const sim = new Simulator({
+        path: d.path,
+        sensors: d.sensors,
+        vehicle: { controller: wasmCtrl, sampler, params: d.tracking },
+        tasks: wasmCtrl.taskEntries(),
+        closed: trackClosed,
+      });
+      sim.reset(d.tracking);
+      try {
+        const r = sim.runToEnd();
+        wasmTrapRef.current = wasmCtrl.trapError;
+        if (!wasmCtrl.trapError) return r;
+      } catch {
+        wasmTrapRef.current = wasmCtrl.trapError ?? 'wasm 控制器执行异常';
+      }
+      // FR-7：trap 后丢弃 wasm 轨迹，内置控制器重跑兜底
+      return buildFormulaSim().runToEnd();
+    }
+    wasmTrapRef.current = null;
+    return buildFormulaSim().runToEnd();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackingTick]);
+  }, [trackingTick, wasmCtrl]);
+
+  // wasm 运行时 trap → 提示回退（setState 移出渲染期 memo）
+  useEffect(() => {
+    if (wasmTrapRef.current) setWasmError(`wasm 运行时 trap，已回退内置控制器：${wasmTrapRef.current}`);
+  }, [trackingResult]);
 
   // ---------------- 位姿来源（程序设计说明.md §4.4）：手动位姿 / 跟随仿真轨迹 ----------------
   const trajAvailable = tracking.enabled && trackingResult !== null && trackingResult.steps > 0;
@@ -731,6 +801,18 @@ export default function Home() {
       sourceKind: d.sourceKind,
       measured: d.measured,
     });
+    if (wasmCtrl) {
+      wasmCtrl.setSensorNames(d.sensors.map((s) => s.name));
+      const sim = new Simulator({
+        path: d.path,
+        sensors: d.sensors,
+        vehicle: { controller: wasmCtrl, sampler, params: d.tracking },
+        tasks: wasmCtrl.taskEntries(),
+        closed: trackClosed,
+      });
+      sim.reset(d.tracking); // wasm 全新实例
+      return sim;
+    }
     return new Simulator({
       path: d.path,
       sensors: d.sensors,
@@ -743,7 +825,7 @@ export default function Home() {
       closed: trackClosed,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackingTick, simMode]);
+  }, [trackingTick, simMode, wasmCtrl]);
 
   // 参数/赛道变化（rtSim 重建）或切模式时停止播放
   useEffect(() => {
@@ -771,12 +853,19 @@ export default function Home() {
         }
       }
       setRtVersion((v) => v + 1);
+      // Phase 13 FR-7：wasm 运行时 trap → 提示并回退内置控制器（rtSim 随 wasmCtrl 置空重建）
+      if (wasmCtrl?.trapError) {
+        setWasmError(`wasm 运行时 trap，已回退内置控制器：${wasmCtrl.trapError}`);
+        setWasmCtrl(null);
+        setRtPlaying(false);
+        return;
+      }
       if (done) setRtPlaying(false);
       else raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [rtPlaying, rtSim, rtSpeed]);
+  }, [rtPlaying, rtSim, rtSpeed, wasmCtrl]);
 
   // 实时模式的活体结果包装（数组引用共享 Simulator 记录，随 rtVersion 重渲染）
   const rtResult: TrackingResult | null = useMemo(() => {
@@ -1318,6 +1407,16 @@ export default function Home() {
                 ranges={trackingRanges}
                 onRangeChange={handleRangeChange}
                 onChartPointClick={handleTrajPointClick}
+                controllerSource={{
+                  kind: wasmCtrl ? 'wasm' : 'builtin',
+                  fileName: wasmCtrl?.fileName ?? null,
+                  abiVersion: wasmCtrl?.abiVersion ?? null,
+                  missingEntries: wasmCtrl?.missingEntries ?? [],
+                  error: wasmError,
+                  lastFileName: wasmFileName,
+                  onUpload: (f) => void handleWasmUpload(f),
+                  onClear: handleWasmClear,
+                }}
                 playback={{
                   mode: simMode,
                   onModeChange: setSimMode,

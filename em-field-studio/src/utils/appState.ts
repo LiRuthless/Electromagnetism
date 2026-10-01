@@ -26,6 +26,8 @@ export const APP_STATE_KEY = 'em-field-studio/app-state';
  * v6 = 折线图浮动状态 floatingCharts、循迹滑块自定义量程 trackingRanges（2026-08-03）。
  * 2026-08-12：tracking 内增补 motorTauMs（电机一阶滞后时间常数）——
  * 依赖 sanitizeTracking 逐字段回退默认值，旧 v6 存档可无损加载，故未升版本号。
+ * 2026-10-01：增补 wasmController（Phase 13 WASM 控制器来源文件名，字节不持久化）——
+ * 同 motorTauMs 先例逐字段回退 null，未升版本号。
  */
 export const APP_STATE_VERSION = 6;
 
@@ -83,6 +85,13 @@ export interface AppState {
   floatingCharts: FloatingChartsMap;
   /** 循迹滑块自定义量程表（v6 新增，程序设计说明.md §4.2） */
   trackingRanges: TrackingRangesMap;
+  /** WASM 控制器来源（Phase 13）：只记文件名作重启提示，wasm 字节不持久化 */
+  wasmController: WasmControllerState;
+}
+
+/** WASM 控制器来源持久化（Phase 13 FR-11）：fileName = 上次上传的 wasm 文件名 */
+export interface WasmControllerState {
+  fileName: string | null;
 }
 
 // ---------------- 校验辅助 ----------------
@@ -244,6 +253,12 @@ function sanitizeTrackingRanges(v: unknown): TrackingRangesMap {
   return out;
 }
 
+/** WASM 控制器来源校验（Phase 13）：缺失/非法逐字段回退 null，不升版本 */
+function sanitizeWasmController(v: unknown): WasmControllerState {
+  const o = isObj(v) ? v : {};
+  return { fileName: isStr(o.fileName) && o.fileName ? o.fileName : null };
+}
+
 /** 单通道方案A 拟合结果校验（非法返回 null） */
 function sanitizeChannelFit(v: unknown): ChannelFit | null {
   if (!isObj(v)) return null;
@@ -351,6 +366,7 @@ export function loadAppState(): AppState | null {
       leftCollapsed: boolOr(v.leftCollapsed, false),
       floatingCharts: sanitizeFloatingCharts(v.floatingCharts),
       trackingRanges: sanitizeTrackingRanges(v.trackingRanges),
+      wasmController: sanitizeWasmController(v.wasmController),
     };
   } catch {
     return null; // JSON 损坏 / localStorage 不可用等，一律回退默认

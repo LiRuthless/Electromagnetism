@@ -69,6 +69,21 @@ interface Props {
     onReset: () => void;
     onSpeedChange: (s: number) => void;
   };
+  /** 控制器来源区（Phase 13 WASM 车载控制器；字节不入 appState，仅文件名持久化） */
+  controllerSource: {
+    /** 当前生效来源 */
+    kind: 'builtin' | 'wasm';
+    fileName: string | null;
+    abiVersion: number | null;
+    /** wasm 探测缺失被跳过的入口名 */
+    missingEntries: string[];
+    /** 加载失败 / 运行时 trap 回退提示（空串 = 无） */
+    error: string;
+    /** appState 记录的上次文件名（重启后提示重新上传；null = 无记录） */
+    lastFileName: string | null;
+    onUpload: (file: File) => void;
+    onClear: () => void;
+  };
 }
 
 /** 小型数字输入已提取为共享组件：@/components/ui/mini-num（程序设计说明.md §3.8） */
@@ -347,8 +362,10 @@ export default function TrackingPanel({
   onRangeChange,
   onChartPointClick,
   playback,
+  controllerSource,
 }: Props) {
   const set = (patch: Partial<TrackingParams>) => onChange({ ...params, ...patch });
+  const wasmFileRef = useRef<HTMLInputElement | null>(null);
 
   // 一键调 PID 状态（程序设计说明.md §4.3）
   const [kpMax, setKpMax] = useState(30);
@@ -413,6 +430,67 @@ export default function TrackingPanel({
 
         {params.enabled && (
           <>
+            {/* 控制器来源（Phase 13）：内置公式 / WASM 车载程序（上传即热替换，字节不持久化） */}
+            <div className="space-y-1.5 rounded border border-slate-700 bg-slate-800/40 p-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-semibold text-slate-400">控制器来源</span>
+                <span className="ml-auto font-mono text-[10px] text-slate-300">
+                  {controllerSource.kind === 'wasm'
+                    ? `${controllerSource.fileName} · ABI v${controllerSource.abiVersion}`
+                    : '内置公式'}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-5 border-slate-600 bg-slate-800 px-1.5 text-[10px]"
+                  onClick={() => wasmFileRef.current?.click()}
+                >
+                  上传 .wasm
+                </Button>
+                {controllerSource.kind === 'wasm' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-5 border-slate-600 bg-slate-800 px-1.5 text-[10px]"
+                    onClick={controllerSource.onClear}
+                  >
+                    回退内置
+                  </Button>
+                )}
+                <input
+                  ref={wasmFileRef}
+                  type="file"
+                  accept=".wasm"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) controllerSource.onUpload(f);
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+              {controllerSource.kind === 'wasm' && (
+                <div className="text-[9px] leading-3.5 text-slate-500">
+                  wasm 车载程序接管中——误差公式 / PD / 差速权重不生效；v_max、电机τm、轮距等整车参数仍生效
+                </div>
+              )}
+              {controllerSource.kind === 'wasm' && controllerSource.missingEntries.length > 0 && (
+                <div className="text-[9px] text-amber-300">
+                  已跳过缺失入口：{controllerSource.missingEntries.join('、')}
+                </div>
+              )}
+              {controllerSource.kind === 'builtin' && controllerSource.lastFileName && (
+                <div className="text-[9px] text-slate-500">
+                  上次使用 {controllerSource.lastFileName}——wasm 字节不持久化，请重新上传
+                </div>
+              )}
+              {controllerSource.error && (
+                <div className="rounded border border-red-800/60 bg-red-900/20 px-1.5 py-1 text-[10px] text-red-300">
+                  {controllerSource.error}
+                </div>
+              )}
+            </div>
+
             {/* 误差公式 */}
             <div>
               <div className="mb-1 flex justify-between text-[10px] text-slate-400">

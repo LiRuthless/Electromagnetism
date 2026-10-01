@@ -13,7 +13,8 @@
     "selfcheck": "tsx scripts/selfcheck.ts",
     "selfcheck:measured": "tsx scripts/selfcheck-measured.ts",
     "selfcheck:tracking": "tsx scripts/selfcheck-tracking.ts",
-    "selfcheck:sim": "tsx scripts/selfcheck-sim.ts"
+    "selfcheck:sim": "tsx scripts/selfcheck-sim.ts",
+    "selfcheck:wasm": "tsx scripts/selfcheck-wasm.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
