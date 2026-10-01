@@ -220,7 +220,7 @@ interface TrackingResult {
 
 ## 非目标（Non-goals）
 
-- 实车嵌入式控制代码（[`specs/mission.md`](../../mission.md) 范围外——本功能控制律仅用于仿真调参）。
+- 实车嵌入式工程本身（交叉编译链、烧录、车队仓库维护——[`specs/mission.md`](../../mission.md) 范围外）；实车控制代码经 WASM 载入仿真验证属 Phase 13 `13-wasm-controller`，本功能的公式控制器为其内置兜底与对照组。
 - 实车循迹日志程序内对比视图（接口④ 的处理，属 Phase 10 `10-vehicle-log-compare`，🧪 待实车数据）。
 - SerialSource 串口直采实车 ADC（属 Phase 11 `11-serial-source`，预留方向）。
 - 程序内参数自动辨识（τ_m / W / v_base 等的辨识走接口③ 线下汇总处理后数字直输回填，🧪 约定已生效，见 [`specs/research/2026-08-13-experiment-modeling.md`](../../research/2026-08-13-experiment-modeling.md)）。

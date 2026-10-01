@@ -70,7 +70,7 @@ MATLAB 侧：`matlab-simulink/` 下 `build_all`（一键建模）、`runAll`（�
 ## 目录与代码规范
 
 - 工作区根即 git 仓库（`origin = github.com/LiRuthless/Electromagnetism`，分支 `main`）；
-- 主程序 `em-field-studio/`：`src/mathmodel/`（数学模型层，track/field/sensor/sweep/measured/control/kinematics）、`src/components/`（UI，`ui/` 为 shadcn 通用组件）、`src/pages/Home.tsx`（状态编排）、`src/utils/`（持久化/导出）、`src/workers/` + `src/hooks/`（磁场网格 Web Worker）、`electron/main.cjs`、`scripts/`（自检与打包辅助）；
+- 主程序 `em-field-studio/`：`src/mathmodel/`（数学模型层，track/field/sensor/sweep/measured/control/kinematics + `sim/` 仿真器子层）、`src/components/`（UI，`ui/` 为 shadcn 通用组件）、`src/pages/Home.tsx`（状态编排）、`src/utils/`（持久化/导出）、`src/workers/` + `src/hooks/`（磁场网格 Web Worker）、`controller-template/`（车载控制器 WASM 模板工程）、`electron/main.cjs`、`scripts/`（自检与打包辅助）；
 - `matlab-simulink/`：Simulink 移植（geom/field/sensor/control/blocks/selfcheck/track_lib），公式注释的"式 (x.y)"编号与 specs/features/ 各规约保留的原编号一致；
 - specs/ 内文件名一律小写英文 + 连字符；功能目录 `NN-<kebab-case-name>`；
 - 文献与参考资料统一收编根目录 `archive/`（docs/ 项目文档与 legacy 归档、papers/ 论文 PDF（仅本地）、presets/ 预设、references/ 参考图、scripts/extract_papers.py）；
@@ -86,16 +86,23 @@ MATLAB 侧：`matlab-simulink/` 下 `build_all`（一键建模）、`runAll`（�
 | `mathmodel/sweep.ts` | 全程扫描：固定 e/ψ 沿赛道扫全程得 U(s) | `03-sensor-model/` |
 | `mathmodel/measured.ts` | 实测数据模型：CSV 导入 + 方案A 拟合 + 方案B 物理偏差校正 | `04-measured-data-model/`（式 7.x） |
 | `mathmodel/control.ts` | 误差公式（递归下降解析无 eval）+ PD + 差速轮速分配 + 电机一阶滞后 | `05-tracking-control/`（式 [8.1](features/05-tracking-control/requirements.md#eq-8-1)–[8.7](features/05-tracking-control/requirements.md#eq-8-7)） |
-| `mathmodel/kinematics.ts` | 两轮差速运动学 + 循迹闭环轨迹仿真主循环 | `05-tracking-control/`（式 [8.8](features/05-tracking-control/requirements.md#eq-8-8)–[8.11](features/05-tracking-control/requirements.md#eq-8-11)） |
+| `mathmodel/kinematics.ts` | 两轮差速运动学（`stepCar`/`carFrame`）+ `simulateTracking()` 兼容薄壳（转调 Simulator.runToEnd） | `05-tracking-control/`（式 [8.8](features/05-tracking-control/requirements.md#eq-8-8)–[8.11](features/05-tracking-control/requirements.md#eq-8-11)）/ `12` |
+| `mathmodel/sim/controller.ts` | `CarController` 接口 + 内置 `FormulaController`（公式+PD 包装）+ `ControllerHost` | `12-simulator-architecture/` / `13` |
+| `mathmodel/sim/scheduler.ts` | 多速率周期任务调度器（整数 µs 时间轴、过期合并、零阶保持） | `12-simulator-architecture/` |
+| `mathmodel/sim/vehicle.ts` | 虚拟整车：读数采样器（收敛仿真/实测回退策略）+ 位姿/轮速状态 + motorLag + stepCar | `12-simulator-architecture/` |
+| `mathmodel/sim/simulator.ts` | Simulator 门面：`reset` / `step`（实时）/ `runToEnd`（快进） | `12-simulator-architecture/` |
+| `mathmodel/sim/autotune.ts` | 一键调 PID 网格搜索（生成器接口）+ `buildSegSpans` | `12-simulator-architecture/`（式 [8.11](features/05-tracking-control/requirements.md#eq-8-11)） |
+| `mathmodel/sim/controllerAbi.ts` / `wasmController.ts` | 控制器 ABI v1（env 导入表/任务入口/式 [13.1](features/13-wasm-controller/requirements.md#eq-13-1) 映射）+ WASM 控制器宿主（探测/trap 回退） | `13-wasm-controller/` |
 | `components/TrackEditor.tsx` | 左侧面板：铺设工具、赛道库、物理参数 | `01` / `06` |
 | `components/FieldCanvas.tsx` | 中央画布：热力图/等值线/车体叠加/铺设交互/循迹轨迹/转角刻度 | `06` |
 | `components/SensorPanel.tsx` | 右侧面板：数据源、实测标定、位姿、读数剖面、全程扫描、布局编辑 | `03` / `04` / `06` |
-| `components/TrackingPanel.tsx` | 循迹控制区（公式/权重/PD/一键调 PID/轮速/扰动） | `05` |
+| `components/TrackingPanel.tsx` | 循迹控制区（公式/权重/PD/一键调 PID/轮速/扰动/快进-实时播放控制/控制器来源区） | `05` / `12` / `13` |
 | `components/PanelSection.tsx` | 可折叠分区卡片（两侧面板统一容器） | `06` |
 | `components/ZoomableChart.tsx` / `FloatingChart.tsx` | 折线图统一缩放封装 / 浮动窗容器 | `06` |
-| `pages/Home.tsx` | 主页面：全部状态编排、数据流、持久化、导出、浮动层宿主 | — |
+| `pages/Home.tsx` | 主页面：状态编排、数据流、持久化、导出、浮动层宿主、实时模式 rAF 驱动 | — |
 | `utils/appState.ts` | localStorage 持久化（`APP_STATE_VERSION`） | `07` |
 | `utils/exporters.ts` | CSV/PNG/JSON 导出 + 赛道库持久化 | `07` |
 | `sensors/sources.ts` | 数据源抽象（仿真可用；串口预留；文件已实现） | `04` |
 | `workers/fieldWorker.ts` + `hooks/useFieldGrid.ts` | 磁场网格 Web Worker（分块/取消/进度/看门狗/主线程兜底） | `02` |
 | `electron/main.cjs` | Electron 主进程（单窗口 1440×900，contextIsolation 开） | `08` |
+| `controller-template/`（em-field-studio 下） | 车载控制器 WASM 模板工程（`controller_api.h` ABI 权威文档 / `controller.c` PD 示例 / `build.bat`） | `13` |
