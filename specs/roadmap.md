@@ -61,11 +61,22 @@
 - 规模：medium
 - 功能规约：待启动时创建
 
+### Phase 12: 仿真器架构分层 `12-simulator-architecture`
+- [ ] 前端/模型层严接口分层：Simulator 门面（runToEnd 快进 + step 实时双模式）、多速率周期任务调度（物理积分 dt 与控制周期分离、零阶保持）、CarController 接口 + 内置 FormulaController、Vehicle 读数策略收敛、一键调 PID 迁入模型层、Home.tsx 瘦身
+- 规模：large
+- 功能规约：`specs/features/12-simulator-architecture/`
+
+### Phase 13: WASM 车载控制器 `13-wasm-controller`
+- [ ] 真实 C 控制代码编译为 WASM 载入仿真：宿主导入函数 ABI（传感器/执行器/时间/数学库）、多速率任务入口、上传与热替换 UI、异常回退内置控制器、controller-template 模板工程与自检 fixture
+- 规模：large
+- 前置依赖：Phase 12 的 CarController 接口与调度器
+- 功能规约：`specs/features/13-wasm-controller/`
+
 ## 当前状态
 
 - 已完成：Phase 01–09（电磁场建模仿真工具 0.1.0，2026-08-15 版 exe 已发布；Simulink 移植 2026-09 落地）
 - 进行中：无代码阶段——等待用户执行实验建模（[`specs/research/2026-08-13-experiment-modeling.md`](research/2026-08-13-experiment-modeling.md)，🧪 三类九项实验，按实验 1→2→3→6/7→4/5→8/9 依赖顺序）
-- 下一步：Phase 10（待实验 9 数据到位）；Phase 11 仍为预留方向
+- 下一步：Phase 10（待实验 9 数据到位）；Phase 11 仍为预留方向；Phase 12/13（架构分层 + WASM 车载控制器）已立项，规约先行
 
 ## 已合并/已取消的计划
 
