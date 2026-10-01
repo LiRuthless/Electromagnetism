@@ -32,6 +32,7 @@
   - `em-field-studio/panel-layout`——面板宽度布局，无版本号，损坏只回退默认宽度；
   - `em-field-studio/track-library`——赛道库，"恢复默认"不清它。
 - 文件级数据：CSV（实测导入 / 网格 / 读数 / 扫描 / 循迹轨迹导出）、JSON（赛道 / 电感布局）、PNG（画布截图）；实测数据文件约定存放 `measured-data/`（首次实验时建立）。
+- Electron 用户数据在本机 `C:\Users\Li\AppData\Roaming\my-app\`（leveldb 为 UTF-16+snappy，不可靠解析；用户说"现在程序中的状态"时以源码默认值为准，如 `defaultLayout()`、`DEFAULT_TRACKING`）。
 
 ## 构建与工具链
 
@@ -73,3 +74,27 @@ MATLAB 侧：`matlab-simulink/` 下 `build_all`（一键建模）、`runAll`（�
 - specs/ 内文件名一律小写英文 + 连字符；功能目录 `NN-<kebab-case-name>`；
 - 文献与参考资料统一收编根目录 `archive/`（docs/ 项目文档与 legacy 归档、papers/ 论文 PDF（仅本地）、presets/ 预设、references/ 参考图、scripts/extract_papers.py）；
 - 格式化：沿用现有代码风格（无独立 formatter 配置），lint 过 `npm run lint`。
+
+## 代码架构地图（mathmodel 文件 ↔ 规约对照）
+
+| 文件（`em-field-studio/src/`） | 职责 | 对应规约 |
+|---|---|---|
+| `mathmodel/track.ts` | 赛道几何：段序列（line/arc）→ 离散电流元 / 路径采样 / 形状工具 / 转角刻度 / 最近点查询 | `01-track-geometry/`（式 4.x） |
+| `mathmodel/field.ts` | 磁场计算：毕奥-萨伐尔积分 + 直线段闭式解 + 网格批算 | `02-magnetic-field/`（式 5.x） |
+| `mathmodel/sensor.ts` | 电感模型：布局、敏感轴、标定 k、车体坐标变换 | `03-sensor-model/`（式 6.x） |
+| `mathmodel/sweep.ts` | 全程扫描：固定 e/ψ 沿赛道扫全程得 U(s) | `03-sensor-model/` |
+| `mathmodel/measured.ts` | 实测数据模型：CSV 导入 + 方案A 拟合 + 方案B 物理偏差校正 | `04-measured-data-model/`（式 7.x） |
+| `mathmodel/control.ts` | 误差公式（递归下降解析无 eval）+ PD + 差速轮速分配 + 电机一阶滞后 | `05-tracking-control/`（式 8.1–8.7） |
+| `mathmodel/kinematics.ts` | 两轮差速运动学 + 循迹闭环轨迹仿真主循环 | `05-tracking-control/`（式 8.8–8.11） |
+| `components/TrackEditor.tsx` | 左侧面板：铺设工具、赛道库、物理参数 | `01` / `06` |
+| `components/FieldCanvas.tsx` | 中央画布：热力图/等值线/车体叠加/铺设交互/循迹轨迹/转角刻度 | `06` |
+| `components/SensorPanel.tsx` | 右侧面板：数据源、实测标定、位姿、读数剖面、全程扫描、布局编辑 | `03` / `04` / `06` |
+| `components/TrackingPanel.tsx` | 循迹控制区（公式/权重/PD/一键调 PID/轮速/扰动） | `05` |
+| `components/PanelSection.tsx` | 可折叠分区卡片（两侧面板统一容器） | `06` |
+| `components/ZoomableChart.tsx` / `FloatingChart.tsx` | 折线图统一缩放封装 / 浮动窗容器 | `06` |
+| `pages/Home.tsx` | 主页面：全部状态编排、数据流、持久化、导出、浮动层宿主 | — |
+| `utils/appState.ts` | localStorage 持久化（`APP_STATE_VERSION`） | `07` |
+| `utils/exporters.ts` | CSV/PNG/JSON 导出 + 赛道库持久化 | `07` |
+| `sensors/sources.ts` | 数据源抽象（仿真可用；串口预留；文件已实现） | `04` |
+| `workers/fieldWorker.ts` + `hooks/useFieldGrid.ts` | 磁场网格 Web Worker（分块/取消/进度/看门狗/主线程兜底） | `02` |
+| `electron/main.cjs` | Electron 主进程（单窗口 1440×900，contextIsolation 开） | `08` |

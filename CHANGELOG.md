@@ -6,12 +6,12 @@
 
 ### Added
 - MATLAB/Simulink 对照移植（`matlab-simulink/`：em_field_check / em_track_sim 双模型 + runAll 自检，与 JS 数学模型层逐行对齐）。
-- 《项目交接文档.md》（面向接手助手的完整交接说明）。
 - **SDD 文档体系**（2026-09-30）：`specs/`（mission / techstack / roadmap + 功能规约 10 套 + research 实验建模记录）、`AGENTS.md`、本文档；原《数学模型.md》《程序设计说明.md》内容全部迁入 specs/，原文归档 `archive/docs/legacy/`。
 
 ### Changed
 - 设计基准制度由"双文档"改为 SDD 规约体系；此后设计变更先改对应 feature 规约（见 `AGENTS.md` 工作规则）。
 - **工作区整理**（2026-10-01）：文献资料统一收编 `archive/`（docs/ + presets/ + references/ + scripts/extract_papers.py + papers/（仅本地））；删除 `backup/` 旧版 exe、`release/` 重复 exe、`matlab-simulink/outputs/` 调试残留与 `slprj/` 缓存；发布渠道改为上传 GitHub Releases（BUILD-EXE.md 与 08 规约三件套同步），本地不再保留旧版备份；`BUILD-EXE.md` 头部旧约定（每次改代码直接重打包）修正为两阶段发布表述。
+- **《项目交接文档.md》完成使命删除**（2026-10-01）：独有内容已并入正式体系——代码架构地图（文件↔规约对照）与本机 Electron 用户数据路径 → `specs/techstack.md`；协作画像（口述变更、公式截图、文档滞后核对源码）→ `AGENTS.md` 工作规则；时间线叙事由本文档与 git 历史承接。
 
 ## [0.1.0] - 2026-08-02（维护至 2026-08-15）
 

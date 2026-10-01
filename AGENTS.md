@@ -6,7 +6,7 @@
 2. `specs/techstack.md` — 技术约束（含硬性约束，不可违反）
 3. `specs/roadmap.md` — 当前进度与下一步
 
-项目背景速览：智能车竞赛电磁组赛道的磁场建模与循迹仿真（20 kHz / 100 mA 贴地电磁线 + 车载工字电感 + 差速循迹）。主程序 `em-field-studio/`（Electron + React 19 + TS + Vite 桌面工具），另有 `matlab-simulink/` 对照移植与 `track_model/` Python 遗留存档。更完整的交接背景见 `项目交接文档.md`。
+项目背景速览：智能车竞赛电磁组赛道的磁场建模与循迹仿真（20 kHz / 100 mA 贴地电磁线 + 车载工字电感 + 差速循迹）。主程序 `em-field-studio/`（Electron + React 19 + TS + Vite 桌面工具），另有 `matlab-simulink/` 对照移植与 `track_model/` Python 遗留存档。
 
 ## 工作规则
 
@@ -14,6 +14,7 @@
 - 修改任何规约文档必须同步更新关联文档（plan / requirements / validation / roadmap / CHANGELOG），防止漂移。
 - 每个任务分组完成后运行对应 validation.md 中的自动化验证（三组自检 + `npm run build`，见 `specs/techstack.md`）。
 - 状态标记约定：✅ 已实现｜🔶 设计变更（待改代码）｜⬜ 新增设计（待实现）｜🧪 待实操（实验建模环节）。
+- 协作方式：用户通常按条口述设计变更（常附公式截图——先读图提取公式再动笔）；歧义处先问或按常规理解具体化并显式声明；**文档可能滞后于代码，动笔前先核对目标文件源码**（默认值、`APP_STATE_VERSION`、新组件），已实现部分以代码为准；收尾回复给"用户要求 → 规约落点"对照表，并声明自行具体化的理解点。
 
 ## 历史资料与编号对应关系
 

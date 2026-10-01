@@ -11,7 +11,7 @@
 
 - 关联宪章：`specs/mission.md` 范围内条目"MATLAB/Simulink 对照移植（公式与 JS 数学模型层逐行对齐）"；`specs/techstack.md` 语言与运行时条目"MATLAB R2025a + Simulink 基础版（`matlab-simulink/` 对照移植，无额外工具箱）"、构建与工具链条目"MATLAB 侧：`build_all`（一键建模）、`runAll`（全部自检）"、目录规范条目（公式注释式编号与 specs/features/ 保留编号一致）。
 - 前置条件：Phase 01–05 已全部实现（数学模型链条与默认参数定稿，式编号保留于各 feature 规约）；§10.1 自检体系已在 JS 侧建立（见各 feature validation.md），移植自检逐项与之对照。
-- 源文档：`matlab-simulink/README.md`（环境、快速开始、模型说明、目录约定）、`项目交接文档.md` §3 架构地图（JS 侧对应模块与核心物理默认值）。
+- 源文档：`matlab-simulink/README.md`（环境、快速开始、模型说明、目录约定）、`specs/techstack.md` 代码架构地图（JS 侧对应模块，原《项目交接文档.md》§3 迁入）。
 - 实现日期推断：git 历史 `f50b547`（2026-09-26，`feat: 新增 matlab-simulink 电磁赛道 Simulink 仿真模型`）与 `c255260`（2026-09-26，清理废案脚本残留、收录 GUI 重存的两个模型，自检复验通过）；roadmap 记"Simulink 移植 2026-09 落地"。
 
 ## 任务分组（Task Groups）
